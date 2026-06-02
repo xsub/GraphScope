@@ -1,0 +1,14 @@
+[package]
+name = "graphscope"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Linux runtime causality, trust, and protection platform prototype"
+
+[lib]
+name = "graphscope"
+path = "src/lib.rs"
+
+[[bin]]
+name = "graphscope"
+path = "src/main.rs"
