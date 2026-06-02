@@ -35,6 +35,16 @@ pub trait KernelPolicyStore {
     fn is_denied_action(&self, action: &str) -> bool;
 }
 
+pub trait MetadataStore {
+    fn put_metadata(
+        &mut self,
+        namespace: impl Into<String>,
+        key: impl Into<String>,
+        value: impl Into<String>,
+    );
+    fn get_metadata(&self, namespace: &str, key: &str) -> Option<&str>;
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct InMemoryKernelPolicyStore {
     trusted_executables: BTreeSet<String>,
@@ -71,5 +81,34 @@ impl KernelPolicyStore for InMemoryKernelPolicyStore {
 
     fn is_denied_action(&self, action: &str) -> bool {
         self.denied_actions.contains(action)
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct InMemoryMetadataStore {
+    values: BTreeMap<(String, String), String>,
+}
+
+impl InMemoryMetadataStore {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl MetadataStore for InMemoryMetadataStore {
+    fn put_metadata(
+        &mut self,
+        namespace: impl Into<String>,
+        key: impl Into<String>,
+        value: impl Into<String>,
+    ) {
+        self.values
+            .insert((namespace.into(), key.into()), value.into());
+    }
+
+    fn get_metadata(&self, namespace: &str, key: &str) -> Option<&str> {
+        self.values
+            .get(&(namespace.to_string(), key.to_string()))
+            .map(String::as_str)
     }
 }

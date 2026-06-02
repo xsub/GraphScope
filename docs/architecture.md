@@ -1,10 +1,30 @@
 # GraphScope Architecture
 
-GraphScope is organized around a deliberately simple split:
+GraphScope is a runtime causality engine backed by a Universal Relationship
+Graph. The graph joins runtime activity, trust metadata, build provenance,
+dependencies, SBOM components, packages, isolation boundaries, and security
+events.
 
-- The kernel layer records facts and performs constant-time guard checks.
-- Userspace builds meaning by replaying facts into a causality graph.
-- Protection decisions are derived from facts, trust, baseline, and rule outputs.
+The architecture is deliberately split:
+
+- Kernel code records facts and performs constant-time hard guards.
+- Userspace builds meaning by replaying facts into the graph.
+- Investigation results are reconstructed graph paths, not log messages.
+
+## Architectural Goal
+
+GraphScope is not an EDR, SIEM, or monitoring platform.
+
+GraphScope models why runtime behavior happened by connecting:
+
+- software provenance
+- dependency relationships
+- package ownership
+- runtime process causality
+- file and socket activity
+- trust assumptions
+- isolation boundaries
+- kernel security events
 
 ## Runtime Flow
 
@@ -12,56 +32,154 @@ GraphScope is organized around a deliberately simple split:
 eBPF / BPF LSM
   -> ring buffers and BPF maps
   -> Rust collector
-  -> event journal
-  -> graph engine
+  -> RocksDB event journal
+  -> Petgraph hot graph
+  -> SQLite metadata store
   -> trust engine
-  -> rule engine
+  -> hard guard and soft rule outputs
   -> baseline engine
   -> investigation interfaces
 ```
 
-## Current Prototype
+## Core Design Constraint
 
-The repository currently implements the userspace core:
+The system must remain operational under fork bombs, network floods,
+high-load application servers, and container-dense environments.
 
-- `event`: normalized runtime facts.
-- `graph`: entity and relationship model with causality traversal.
-- `rules`: constant-time guard-rule equivalents for early prototyping.
-- `trust`: package/build provenance verdicts.
-- `baseline`: expected behavior learning and drift detection.
-- `storage`: journal and kernel policy store traits with in-memory adapters.
-- `investigation`: "why did this happen?" query layer.
-
-The in-memory graph is intentionally dependency-light. A future Petgraph-backed
-implementation can live behind the same graph-facing APIs once external
-dependencies are introduced.
-
-## Kernel Boundary
-
-The kernel side should only perform:
-
-- observation
-- filtering
-- aggregation
-- critical guard checks
-
-The kernel side should not perform:
+Therefore the kernel side must never perform:
 
 - graph traversal
 - historical queries
 - trust path reconstruction
 - AI inference
 
-This keeps BPF programs bounded, auditable, and compatible with verifier
-constraints.
+Kernel logic must remain O(1). Expensive graph operations are userspace work.
 
-## Storage Boundary
+## Data Architecture
 
-GraphScope uses three persistence concepts:
+GraphScope uses four storage layers:
 
-- Hot graph: active in-memory causality graph.
-- Event journal: append-only replayable event stream.
-- Metadata store: baseline, trust, package, and investigation snapshots.
+| Layer | Technology | Purpose |
+| --- | --- | --- |
+| 1 | BPF Maps | Kernel policy cache and fast security decisions |
+| 2 | Petgraph in RAM | Active runtime graph and hot causality queries |
+| 3 | RocksDB | Append-only event journal and replay capability |
+| 4 | SQLite | Baseline, trust metadata, configuration, and investigation snapshots |
 
-The prototype provides in-memory traits first. RocksDB and SQLite adapters can
-be added without changing the higher-level engines.
+The current prototype keeps these boundaries but implements them in memory:
+
+- `CausalityGraph`: hot graph.
+- `InMemoryEventJournal`: event journal stand-in.
+- `InMemoryKernelPolicyStore`: BPF map stand-in.
+- `InMemoryMetadataStore`: SQLite metadata stand-in.
+
+## Universal Graph Model
+
+All entities are nodes.
+
+Current node types include:
+
+- `Process`
+- `File`
+- `Socket`
+- `User`
+- `SELinux Context`
+- `Namespace`
+- `Container`
+- `Image`
+- `Service`
+- `RPM Package`
+- `Build Artifact`
+- `Source Repository`
+- `Dependency`
+- `SBOM Component`
+- `BPF Program`
+- `Kernel Module`
+- `Security Event`
+
+Relationships are edges.
+
+Current relationship types include:
+
+- `spawned`
+- `opened`
+- `modified`
+- `connected`
+- `inherited`
+- `authenticated`
+- `transitioned`
+- `loaded`
+- `executed`
+- `depends_on`
+- `built_from`
+- `installed_from`
+- `owns`
+- `caused`
+- `trusted_by`
+- `denied_by`
+
+This model is intentionally compatible with dependency graphs, build provenance
+graphs, runtime causality graphs, trust graphs, and isolation graphs.
+
+## Kernel Security Model
+
+GraphScope separates hard guards from soft rules.
+
+Hard guards execute inside the kernel:
+
+- `unexpected_uid0_transition`
+- `unexpected_capability_gain`
+- `execution_from_tmp_as_root`
+- `unexpected_bpf_program_load`
+- `unexpected_kernel_module_load`
+
+Soft rules execute in userspace:
+
+- `nginx_spawned_shell`
+- `unusual_destination`
+- `first_seen_path`
+- baseline deviations
+- trust path violations
+
+Hard guards must remain O(1). Soft rules may use graph traversal, replayed
+history, baselines, package metadata, and trust paths.
+
+## Investigation Model
+
+Every alert must answer:
+
+- What happened?
+- Why did it happen?
+- What caused it?
+- What trust assumptions were violated?
+- Which graph path led here?
+
+A valid alert is a reconstructed causality path with trust context.
+
+Example:
+
+```text
+Source Repository
+  -> Dependency
+  -> Build Artifact
+  -> RPM
+  -> Installed File
+  -> Process
+  -> Security Event
+```
+
+## Future Phases
+
+Phase 11: Container provenance.
+
+Phase 12: Namespace provenance.
+
+Phase 13: eBPF provenance.
+
+Phase 14: Kernel module provenance.
+
+Phase 15: Build provenance integration.
+
+Phase 16: SBOM integration.
+
+Phase 17: Trust path reconstruction.

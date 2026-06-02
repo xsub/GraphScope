@@ -46,7 +46,7 @@ fn run_demo() {
         signed: true,
     });
 
-    println!("GraphScope demo: runtime causality reconstruction");
+    println!("GraphScope demo: universal relationship graph reconstruction");
     println!();
 
     for event in events {
@@ -58,8 +58,8 @@ fn run_demo() {
         }
         for finding in rules.evaluate(&event) {
             println!(
-                "[guard:{}] {} subject={} ({})",
-                finding.severity, finding.rule, finding.subject, finding.reason
+                "[{}:{}] {} subject={} ({})",
+                finding.layer, finding.severity, finding.rule, finding.subject, finding.reason
             );
         }
         graph.ingest(&event);
@@ -68,7 +68,7 @@ fn run_demo() {
     }
 
     let investigator = InvestigationEngine::new(&graph, &trust);
-    let investigation = investigator.why_connection("1.2.3.4:443");
+    let investigation = investigator.why_security_event("evt-0001");
 
     println!();
     println!("{}", investigation.question);
@@ -84,14 +84,27 @@ fn run_demo() {
     }
 
     println!();
+    println!("Trust paths");
+    for path in investigation.trust_paths {
+        println!(
+            "- {}: {} ({})",
+            path.target,
+            format_chain(&path.path),
+            path.reason
+        );
+    }
+
+    println!();
     println!(
         "Replay journal contains {} ordered events",
         journal.replay().len()
     );
 
-    if let Some(path) = graph.causal_path(&EntityKey::process(1), &EntityKey::socket("1.2.3.4:443"))
-    {
-        println!("Root-to-socket path: {}", format_chain(&path));
+    if let Some(path) = graph.causal_path(
+        &EntityKey::process(1),
+        &EntityKey::security_event("evt-0001"),
+    ) {
+        println!("Root-to-alert path: {}", format_chain(&path));
     }
 }
 
@@ -104,9 +117,88 @@ fn format_chain(chain: &[EntityKey]) -> String {
 }
 
 fn demo_events() -> Vec<RuntimeEvent> {
+    let repository = "https://git.example.test/platform/nginx".to_string();
+    let artifact = "nginx-1.26.0-2.el10.x86_64.rpm".to_string();
+    let package = "nginx-1.26.0-2.el10".to_string();
+
     vec![
         RuntimeEvent::new(
             1,
+            0,
+            EventKind::SourceRepository {
+                repository: repository.clone(),
+                commit: "8f4f2a1".to_string(),
+            },
+        ),
+        RuntimeEvent::new(
+            2,
+            0,
+            EventKind::SourceDependency {
+                repository: repository.clone(),
+                dependency: "openssl".to_string(),
+                version: "3.2.0".to_string(),
+                ecosystem: "rpm".to_string(),
+            },
+        ),
+        RuntimeEvent::new(
+            3,
+            0,
+            EventKind::BuildArtifact {
+                artifact: artifact.clone(),
+                digest: "sha256:nginx-artifact-demo".to_string(),
+                source_repository: repository,
+                commit: "8f4f2a1".to_string(),
+            },
+        ),
+        RuntimeEvent::new(
+            4,
+            0,
+            EventKind::ArtifactDependency {
+                artifact: artifact.clone(),
+                dependency: "openssl".to_string(),
+                version: "3.2.0".to_string(),
+                ecosystem: "rpm".to_string(),
+            },
+        ),
+        RuntimeEvent::new(
+            5,
+            0,
+            EventKind::SbomComponent {
+                artifact: artifact.clone(),
+                component: "openssl".to_string(),
+                version: "3.2.0".to_string(),
+            },
+        ),
+        RuntimeEvent::new(
+            6,
+            0,
+            EventKind::ArtifactPackage {
+                artifact,
+                package: package.clone(),
+            },
+        ),
+        RuntimeEvent::new(
+            7,
+            0,
+            EventKind::PackageFile {
+                package,
+                path: "/usr/sbin/nginx".to_string(),
+                digest: "sha256:nginx-demo".to_string(),
+                signed: true,
+            },
+        ),
+        RuntimeEvent::new(
+            8,
+            0,
+            EventKind::PackageFile {
+                package: "systemd-256.1-1.el10".to_string(),
+                path: "/usr/lib/systemd/systemd".to_string(),
+                digest: "sha256:systemd-demo".to_string(),
+                signed: true,
+            },
+        ),
+        RuntimeEvent::new(
+            100,
             0,
             EventKind::ProcessExec {
                 pid: 1,
@@ -119,7 +211,7 @@ fn demo_events() -> Vec<RuntimeEvent> {
             },
         ),
         RuntimeEvent::new(
-            2,
+            101,
             1,
             EventKind::ProcessExec {
                 pid: 100,
@@ -136,7 +228,7 @@ fn demo_events() -> Vec<RuntimeEvent> {
             },
         ),
         RuntimeEvent::new(
-            3,
+            102,
             2,
             EventKind::ProcessExec {
                 pid: 101,
@@ -149,7 +241,7 @@ fn demo_events() -> Vec<RuntimeEvent> {
             },
         ),
         RuntimeEvent::new(
-            4,
+            103,
             3,
             EventKind::ProcessExec {
                 pid: 120,
@@ -162,7 +254,7 @@ fn demo_events() -> Vec<RuntimeEvent> {
             },
         ),
         RuntimeEvent::new(
-            5,
+            104,
             4,
             EventKind::ProcessExec {
                 pid: 121,
@@ -179,7 +271,7 @@ fn demo_events() -> Vec<RuntimeEvent> {
             },
         ),
         RuntimeEvent::new(
-            6,
+            105,
             5,
             EventKind::FileModify {
                 pid: 121,
@@ -187,7 +279,7 @@ fn demo_events() -> Vec<RuntimeEvent> {
             },
         ),
         RuntimeEvent::new(
-            7,
+            106,
             6,
             EventKind::CredentialChange {
                 pid: 122,
@@ -197,7 +289,7 @@ fn demo_events() -> Vec<RuntimeEvent> {
             },
         ),
         RuntimeEvent::new(
-            8,
+            107,
             7,
             EventKind::ProcessExec {
                 pid: 122,
@@ -210,12 +302,22 @@ fn demo_events() -> Vec<RuntimeEvent> {
             },
         ),
         RuntimeEvent::new(
-            9,
+            108,
             8,
             EventKind::NetworkConnect {
                 pid: 122,
                 protocol: NetworkProtocol::Tcp,
                 remote_addr: "1.2.3.4:443".to_string(),
+            },
+        ),
+        RuntimeEvent::new(
+            109,
+            9,
+            EventKind::SecurityEvent {
+                event_id: "evt-0001".to_string(),
+                pid: Some(122),
+                summary: "root temporary payload opened outbound connection".to_string(),
+                severity: "critical".to_string(),
             },
         ),
     ]

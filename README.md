@@ -1,36 +1,52 @@
 # GraphScope
 
-GraphScope is a Linux runtime causality, trust, and protection platform.
+GraphScope is a Linux Runtime Causality Platform built around a Universal
+Relationship Graph.
 
-It continuously models operating-system activity as a graph of processes, files,
-sockets, users, SELinux contexts, packages, containers, services, and
-kernel-level security events. The core product question is:
+GraphScope is not an EDR.
+
+GraphScope is not a SIEM.
+
+GraphScope is not a monitoring platform.
+
+GraphScope models relationships between software, processes, files, sockets,
+trust artifacts, supply-chain metadata, and isolation boundaries. The core
+product question remains:
 
 ```text
 Why did this happen?
 ```
 
-The long-term goal is a runtime digital twin for Linux systems: facts collected
-close to the kernel, meaning built in userspace, and protection decisions derived
-from causality.
+But the graph is broader than runtime provenance alone. It is designed to join:
+
+- dependency graphs
+- build provenance graphs
+- runtime causality graphs
+- trust graphs
+- isolation graphs
 
 ## Status
 
-This repository now contains an initial Rust prototype of the userspace core.
-It is not yet an eBPF collector or host protection agent. The current code
-establishes the model and execution path that those components can feed.
+This repository contains an initial Rust userspace prototype. It is not yet an
+eBPF collector or host protection agent, but the model now points at the broader
+GraphScope direction: a universal graph that can connect source code to runtime
+security events.
 
 Implemented:
 
 - Runtime event model for process, file, network, credential, SELinux, package,
-  container, service, BPF, and kernel module facts.
-- In-memory causality graph with typed nodes and relationships.
+  container, service, BPF, kernel module, and security-event facts.
+- Supply-chain event model for source repositories, dependencies, build
+  artifacts, RPM packages, installed files, and SBOM components.
+- In-memory universal relationship graph with typed nodes and relationships.
 - Causality traversal for "why did this happen?" investigations.
-- Trust engine for package/build provenance signals.
-- Rule engine for kernel-guard-style detections.
-- Baseline engine for expected parent, file, and network behavior.
-- Replayable in-memory event journal and policy-store traits.
-- CLI demo that reconstructs a suspicious nginx-to-payload-to-socket chain.
+- Trust path reconstruction from source or RPM provenance to runtime files.
+- Hard-guard rule findings marked as kernel-executable guard logic.
+- Baseline engine for userspace soft-rule style behavior drift.
+- Replayable in-memory event journal, kernel policy store, and metadata store
+  traits.
+- CLI demo that reconstructs a suspicious nginx-to-payload-to-security-event
+  chain and prints trust paths.
 
 ## Quick Start
 
@@ -39,94 +55,139 @@ cargo test
 cargo run -- demo
 ```
 
-The demo replays a small event stream:
+The demo links supply-chain and runtime facts:
 
 ```text
-systemd -> nginx -> bash -> curl -> /tmp/payload -> 1.2.3.4:443
+Source Repository
+  -> Dependency
+  -> Build Artifact
+  -> RPM
+  -> Installed File
+  -> Running Process
+  -> Runtime Activity
+  -> Security Event
 ```
 
-It emits guard findings, baseline drift, trust verdicts, and a causal path.
+It emits baseline drift, hard guard findings, trust verdicts, trust paths, and a
+causal path.
 
-## Design Philosophy
+## Core Design Constraint
 
-Facts first.
+GraphScope must remain operational under:
 
-Meaning later.
+- fork bombs
+- network floods
+- high-load application servers
+- container-dense environments
 
-Protection last.
+Therefore:
 
-The kernel collects facts. Userspace builds meaning. Graphs are the source of
-truth; logs are supporting evidence. AI may explain findings in the future, but
-AI never becomes the source of truth.
+- graph traversal never occurs inside the kernel
+- historical queries never occur inside the kernel
+- trust path reconstruction never occurs inside the kernel
+- AI never executes inside the kernel
+- kernel logic must remain O(1)
 
-## Target Platform
+## Data Architecture
 
-Initial target:
+GraphScope uses four storage layers:
 
-- AlmaLinux 10
-- RHEL-compatible distributions
+1. BPF Maps
+   Purpose: kernel policy cache and fast security decisions.
+2. Petgraph in RAM
+   Purpose: active runtime graph and hot causality queries.
+3. RocksDB
+   Purpose: append-only event journal and replay.
+4. SQLite
+   Purpose: baseline, trust metadata, configuration, and investigation snapshots.
 
-Future targets:
+The prototype currently uses dependency-light in-memory implementations while
+preserving the boundaries for these adapters.
 
-- Fedora
-- Rocky Linux
-- Oracle Linux
-- CentOS Stream
+## Universal Graph Model
 
-## Intended Stack
+All entities are represented as nodes.
 
-Kernel layer:
+Examples:
 
-- eBPF
-- BPF LSM
-- libbpf CO-RE
-- ring buffers
-- BPF maps
+- Process
+- File
+- Socket
+- SELinux Context
+- Namespace
+- Container
+- RPM Package
+- Build Artifact
+- Source Repository
+- Dependency
+- SBOM Component
+- Security Event
 
-Userspace:
+Relationships are represented as edges.
 
-- Rust
-- Tokio
-- Petgraph
-- SQLite
-- RocksDB
-- Ratatui
+Examples:
 
-The prototype currently avoids external dependencies so the foundation remains
-easy to build in restricted environments. The module boundaries are ready for
-Petgraph, RocksDB, SQLite, Tokio, and Ratatui adapters.
+- `spawned`
+- `depends_on`
+- `built_from`
+- `installed_from`
+- `owns`
+- `opened`
+- `connected`
+- `transitioned`
+- `trusted_by`
+- `caused`
 
-## Architecture
+## Kernel Security Model
+
+GraphScope separates hard guards from soft rules.
+
+Hard guards execute inside the kernel and must be constant-time:
+
+- `unexpected_uid0_transition`
+- `unexpected_capability_gain`
+- `execution_from_tmp_as_root`
+- `unexpected_bpf_program_load`
+
+Soft rules execute in userspace:
+
+- `nginx_spawned_shell`
+- `unusual_destination`
+- `first_seen_path`
+- baseline deviations
+
+## Investigation Model
+
+Every alert must answer:
+
+- What happened?
+- Why did it happen?
+- What caused it?
+- What trust assumptions were violated?
+- Which graph path led here?
+
+A valid alert is not a log entry. A valid alert is a reconstructed causality path
+with trust context.
+
+## Future Supply Chain Integration
+
+GraphScope is designed to integrate with build provenance and SBOM systems.
+
+Long-term graph:
 
 ```text
-Kernel
-  -> Event Collection
-  -> Kernel Policy Layer
-  -> Rust Collector
-  -> Event Journal
-  -> Graph Engine
-  -> Trust Engine
-  -> Rule Engine
-  -> Baseline Engine
-  -> Investigation Engine
-  -> CLI / TUI / GUI
+Source Code
+  -> Dependency
+  -> Build
+  -> Artifact
+  -> RPM
+  -> Installed File
+  -> Running Process
+  -> Runtime Activity
+  -> Security Event
 ```
 
-See [docs/architecture.md](docs/architecture.md) for the implementation layout
-and boundary decisions.
-
-## Core Questions
-
-GraphScope is designed to answer:
-
-- Why did this process start?
-- Why did this process become root?
-- Why was this file modified?
-- Why did this outbound connection happen?
-- Why did this SELinux violation occur?
-- Why was this container allowed to perform this action?
-- Why is this executable trusted?
-- Why is this process considered suspicious?
+GraphScope must support traversing this chain end-to-end.
 
 ## Roadmap
 
@@ -138,3 +199,10 @@ GraphScope is designed to answer:
 6. Add package verification through RPM metadata and file digests.
 7. Add BPF map synchronization for trusted executables and denied actions.
 8. Add SELinux AVC ingestion and context-transition analysis.
+9. Add container provenance.
+10. Add namespace provenance.
+11. Add eBPF program provenance.
+12. Add kernel module provenance.
+13. Add build provenance integration.
+14. Add SBOM integration.
+15. Add trust path reconstruction for complete source-to-runtime chains.

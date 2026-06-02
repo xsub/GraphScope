@@ -4,6 +4,7 @@ use std::fmt;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuleFinding {
     pub rule: GuardRule,
+    pub layer: RuleExecutionLayer,
     pub severity: Severity,
     pub subject: String,
     pub reason: String,
@@ -18,6 +19,22 @@ pub enum GuardRule {
     UnexpectedBpfProgramLoad,
     UnexpectedKernelModuleLoad,
     ContainerEscapeIndicator,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RuleExecutionLayer {
+    KernelHardGuard,
+    UserspaceSoftRule,
+}
+
+impl fmt::Display for RuleExecutionLayer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let value = match self {
+            Self::KernelHardGuard => "kernel_hard_guard",
+            Self::UserspaceSoftRule => "userspace_soft_rule",
+        };
+        f.write_str(value)
+    }
 }
 
 impl fmt::Display for GuardRule {
@@ -104,6 +121,7 @@ fn evaluate_rule(rule: &GuardRule, event: &RuntimeEvent) -> Option<RuleFinding> 
         ) if *new_uid == 0 && *old_uid != 0 && !is_expected_root_reason(reason) => {
             Some(RuleFinding {
                 rule: rule.clone(),
+                layer: RuleExecutionLayer::KernelHardGuard,
                 severity: Severity::High,
                 subject: format!("pid:{pid}"),
                 reason: format!(
@@ -121,6 +139,7 @@ fn evaluate_rule(rule: &GuardRule, event: &RuntimeEvent) -> Option<RuleFinding> 
             },
         ) if *euid == 0 && is_tmp_path(executable) => Some(RuleFinding {
             rule: rule.clone(),
+            layer: RuleExecutionLayer::KernelHardGuard,
             severity: Severity::Critical,
             subject: format!("pid:{pid}"),
             reason: format!("root process executed from temporary path '{executable}'"),
@@ -128,6 +147,7 @@ fn evaluate_rule(rule: &GuardRule, event: &RuntimeEvent) -> Option<RuleFinding> 
         (GuardRule::UnexpectedBpfProgramLoad, EventKind::BpfProgramLoad { pid, program }) => {
             Some(RuleFinding {
                 rule: rule.clone(),
+                layer: RuleExecutionLayer::KernelHardGuard,
                 severity: Severity::Medium,
                 subject: format!("pid:{pid}"),
                 reason: format!("loaded BPF program '{program}'"),
@@ -136,6 +156,7 @@ fn evaluate_rule(rule: &GuardRule, event: &RuntimeEvent) -> Option<RuleFinding> 
         (GuardRule::UnexpectedKernelModuleLoad, EventKind::KernelModuleLoad { pid, module }) => {
             Some(RuleFinding {
                 rule: rule.clone(),
+                layer: RuleExecutionLayer::KernelHardGuard,
                 severity: Severity::High,
                 subject: format!("pid:{pid}"),
                 reason: format!("loaded kernel module '{module}'"),

@@ -16,8 +16,9 @@ pub use baseline::{BaselineEngine, BaselineFinding};
 pub use event::{EventKind, RuntimeEvent};
 pub use graph::{CausalityGraph, Edge, EntityKey, EntityKind, Relationship};
 pub use investigation::{Investigation, InvestigationEngine};
-pub use rules::{GuardRule, RuleEngine, RuleFinding, Severity};
+pub use rules::{GuardRule, RuleEngine, RuleExecutionLayer, RuleFinding, Severity};
 pub use storage::{
-    EventJournal, InMemoryEventJournal, InMemoryKernelPolicyStore, KernelPolicyStore,
+    EventJournal, InMemoryEventJournal, InMemoryKernelPolicyStore, InMemoryMetadataStore,
+    KernelPolicyStore, MetadataStore,
 };
-pub use trust::{TrustEngine, TrustFinding, TrustVerdict, TrustedArtifact};
+pub use trust::{TrustEngine, TrustFinding, TrustPath, TrustVerdict, TrustedArtifact};

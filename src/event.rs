@@ -28,7 +28,14 @@ impl RuntimeEvent {
             | EventKind::KernelModuleLoad { pid, .. }
             | EventKind::BpfProgramLoad { pid, .. }
             | EventKind::SelinuxAvc { pid, .. } => Some(*pid),
+            EventKind::SecurityEvent { pid, .. } => *pid,
             EventKind::PackageFile { .. }
+            | EventKind::SourceRepository { .. }
+            | EventKind::SourceDependency { .. }
+            | EventKind::BuildArtifact { .. }
+            | EventKind::ArtifactDependency { .. }
+            | EventKind::ArtifactPackage { .. }
+            | EventKind::SbomComponent { .. }
             | EventKind::ServiceStart { .. }
             | EventKind::ContainerStart { .. } => None,
         }
@@ -76,6 +83,37 @@ pub enum EventKind {
         digest: String,
         signed: bool,
     },
+    SourceRepository {
+        repository: String,
+        commit: String,
+    },
+    SourceDependency {
+        repository: String,
+        dependency: String,
+        version: String,
+        ecosystem: String,
+    },
+    BuildArtifact {
+        artifact: String,
+        digest: String,
+        source_repository: String,
+        commit: String,
+    },
+    ArtifactDependency {
+        artifact: String,
+        dependency: String,
+        version: String,
+        ecosystem: String,
+    },
+    ArtifactPackage {
+        artifact: String,
+        package: String,
+    },
+    SbomComponent {
+        artifact: String,
+        component: String,
+        version: String,
+    },
     KernelModuleLoad {
         pid: u32,
         module: String,
@@ -100,6 +138,12 @@ pub enum EventKind {
         container_id: String,
         image: String,
         pid: u32,
+    },
+    SecurityEvent {
+        event_id: String,
+        pid: Option<u32>,
+        summary: String,
+        severity: String,
     },
 }
 

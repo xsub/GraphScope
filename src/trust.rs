@@ -19,6 +19,14 @@ pub struct TrustFinding {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TrustPath {
+    pub target: EntityKey,
+    pub verdict: TrustVerdict,
+    pub path: Vec<EntityKey>,
+    pub reason: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TrustVerdict {
     Trusted,
     Unknown,
@@ -110,11 +118,51 @@ impl TrustEngine {
         findings.sort_by(|left, right| left.entity.to_string().cmp(&right.entity.to_string()));
         findings
     }
+
+    pub fn reconstruct_trust_path(
+        &self,
+        graph: &CausalityGraph,
+        executable_path: &str,
+        euid: Option<u32>,
+    ) -> TrustPath {
+        let finding = self.evaluate_executable(executable_path, euid);
+        let target = EntityKey::file(executable_path.to_string());
+        let path = graph
+            .nodes()
+            .filter(|node| node.key.kind == EntityKind::SourceRepository)
+            .filter_map(|node| graph.provenance_path(&node.key, &target))
+            .min_by_key(path_rank)
+            .or_else(|| {
+                graph
+                    .nodes()
+                    .filter(|node| node.key.kind == EntityKind::RpmPackage)
+                    .filter_map(|node| graph.provenance_path(&node.key, &target))
+                    .min_by_key(path_rank)
+            })
+            .unwrap_or_else(|| vec![target.clone()]);
+
+        TrustPath {
+            target,
+            verdict: finding.verdict,
+            path,
+            reason: finding.reason,
+        }
+    }
+}
+
+fn path_rank(path: &Vec<EntityKey>) -> (bool, usize) {
+    (
+        !path
+            .iter()
+            .any(|entity| entity.kind == EntityKind::Dependency),
+        path.len(),
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::event::{EventKind, RuntimeEvent};
 
     #[test]
     fn root_tmp_execution_is_untrusted() {
@@ -122,5 +170,80 @@ mod tests {
         let finding = engine.evaluate_executable("/tmp/payload", Some(0));
 
         assert_eq!(finding.verdict, TrustVerdict::Untrusted);
+    }
+
+    #[test]
+    fn reconstructs_source_to_file_trust_path() {
+        let mut graph = CausalityGraph::new();
+        let mut engine = TrustEngine::new();
+        let repository = "https://example.test/nginx.git".to_string();
+        let artifact = "nginx.rpm".to_string();
+        let package = "nginx-1.26.0-2.el10".to_string();
+        let file = "/usr/sbin/nginx".to_string();
+
+        engine.trust_artifact(TrustedArtifact {
+            path: file.clone(),
+            package: package.clone(),
+            digest: "sha256:nginx".to_string(),
+            signed: true,
+        });
+
+        for event in [
+            RuntimeEvent::new(
+                1,
+                0,
+                EventKind::SourceDependency {
+                    repository: repository.clone(),
+                    dependency: "openssl".to_string(),
+                    version: "3.2.0".to_string(),
+                    ecosystem: "rpm".to_string(),
+                },
+            ),
+            RuntimeEvent::new(
+                2,
+                0,
+                EventKind::ArtifactDependency {
+                    artifact: artifact.clone(),
+                    dependency: "openssl".to_string(),
+                    version: "3.2.0".to_string(),
+                    ecosystem: "rpm".to_string(),
+                },
+            ),
+            RuntimeEvent::new(
+                3,
+                0,
+                EventKind::ArtifactPackage {
+                    artifact,
+                    package: package.clone(),
+                },
+            ),
+            RuntimeEvent::new(
+                4,
+                0,
+                EventKind::PackageFile {
+                    package,
+                    path: file.clone(),
+                    digest: "sha256:nginx".to_string(),
+                    signed: true,
+                },
+            ),
+        ] {
+            graph.ingest(&event);
+        }
+
+        let trust_path = engine.reconstruct_trust_path(&graph, &file, Some(0));
+
+        assert_eq!(trust_path.verdict, TrustVerdict::Trusted);
+        assert_eq!(
+            trust_path.path.first().unwrap().kind,
+            EntityKind::SourceRepository
+        );
+        assert_eq!(trust_path.path.last().unwrap(), &EntityKey::file(file));
+        assert!(
+            trust_path
+                .path
+                .iter()
+                .any(|entity| entity.kind == EntityKind::Dependency)
+        );
     }
 }

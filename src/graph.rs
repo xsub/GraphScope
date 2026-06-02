@@ -31,6 +31,36 @@ impl EntityKey {
     pub fn user(uid: u32) -> Self {
         Self::new(EntityKind::User, format!("uid:{uid}"))
     }
+
+    pub fn source_repository(repository: impl Into<String>) -> Self {
+        Self::new(EntityKind::SourceRepository, repository)
+    }
+
+    pub fn dependency(
+        ecosystem: impl Into<String>,
+        name: impl Into<String>,
+        version: impl Into<String>,
+    ) -> Self {
+        Self::new(
+            EntityKind::Dependency,
+            format!("{}:{}@{}", ecosystem.into(), name.into(), version.into()),
+        )
+    }
+
+    pub fn build_artifact(artifact: impl Into<String>) -> Self {
+        Self::new(EntityKind::BuildArtifact, artifact)
+    }
+
+    pub fn sbom_component(component: impl Into<String>, version: impl Into<String>) -> Self {
+        Self::new(
+            EntityKind::SbomComponent,
+            format!("{}@{}", component.into(), version.into()),
+        )
+    }
+
+    pub fn security_event(event_id: impl Into<String>) -> Self {
+        Self::new(EntityKind::SecurityEvent, event_id)
+    }
 }
 
 impl fmt::Display for EntityKey {
@@ -53,8 +83,12 @@ pub enum EntityKind {
     Service,
     RpmPackage,
     BuildArtifact,
+    SourceRepository,
+    Dependency,
+    SbomComponent,
     BpfProgram,
     KernelModule,
+    SecurityEvent,
 }
 
 impl fmt::Display for EntityKind {
@@ -72,8 +106,12 @@ impl fmt::Display for EntityKind {
             Self::Service => "service",
             Self::RpmPackage => "rpm-package",
             Self::BuildArtifact => "build-artifact",
+            Self::SourceRepository => "source-repository",
+            Self::Dependency => "dependency",
+            Self::SbomComponent => "sbom-component",
             Self::BpfProgram => "bpf-program",
             Self::KernelModule => "kernel-module",
+            Self::SecurityEvent => "security-event",
         };
         f.write_str(value)
     }
@@ -118,6 +156,11 @@ pub enum Relationship {
     Loaded,
     Executed,
     Installed,
+    DependsOn,
+    BuiltFrom,
+    InstalledFrom,
+    Owns,
+    Caused,
     TrustedBy,
     DeniedBy,
 }
@@ -136,8 +179,13 @@ impl fmt::Display for Relationship {
             Self::Loaded => "loaded",
             Self::Executed => "executed",
             Self::Installed => "installed",
-            Self::TrustedBy => "trusted-by",
-            Self::DeniedBy => "denied-by",
+            Self::DependsOn => "depends_on",
+            Self::BuiltFrom => "built_from",
+            Self::InstalledFrom => "installed_from",
+            Self::Owns => "owns",
+            Self::Caused => "caused",
+            Self::TrustedBy => "trusted_by",
+            Self::DeniedBy => "denied_by",
         };
         f.write_str(value)
     }
@@ -311,7 +359,127 @@ impl CausalityGraph {
                     file.clone(),
                     &[("path", path.clone()), ("digest", digest.clone())],
                 );
-                self.add_edge(package_node, file, Relationship::Installed, event.sequence);
+                self.add_edge(package_node, file, Relationship::Owns, event.sequence);
+            }
+            EventKind::SourceRepository { repository, commit } => {
+                let source = EntityKey::source_repository(repository.clone());
+                self.upsert_node(
+                    source,
+                    &[
+                        ("repository", repository.clone()),
+                        ("commit", commit.clone()),
+                    ],
+                );
+            }
+            EventKind::SourceDependency {
+                repository,
+                dependency,
+                version,
+                ecosystem,
+            } => {
+                let source = EntityKey::source_repository(repository.clone());
+                let dependency_node =
+                    EntityKey::dependency(ecosystem.clone(), dependency.clone(), version.clone());
+                self.upsert_node(source.clone(), &[("repository", repository.clone())]);
+                self.upsert_node(
+                    dependency_node.clone(),
+                    &[
+                        ("name", dependency.clone()),
+                        ("version", version.clone()),
+                        ("ecosystem", ecosystem.clone()),
+                    ],
+                );
+                self.add_edge(
+                    source,
+                    dependency_node,
+                    Relationship::DependsOn,
+                    event.sequence,
+                );
+            }
+            EventKind::BuildArtifact {
+                artifact,
+                digest,
+                source_repository,
+                commit,
+            } => {
+                let source = EntityKey::source_repository(source_repository.clone());
+                let artifact_node = EntityKey::build_artifact(artifact.clone());
+                self.upsert_node(
+                    source.clone(),
+                    &[
+                        ("repository", source_repository.clone()),
+                        ("commit", commit.clone()),
+                    ],
+                );
+                self.upsert_node(
+                    artifact_node.clone(),
+                    &[("artifact", artifact.clone()), ("digest", digest.clone())],
+                );
+                self.add_edge(
+                    source,
+                    artifact_node,
+                    Relationship::BuiltFrom,
+                    event.sequence,
+                );
+            }
+            EventKind::ArtifactDependency {
+                artifact,
+                dependency,
+                version,
+                ecosystem,
+            } => {
+                let dependency_node =
+                    EntityKey::dependency(ecosystem.clone(), dependency.clone(), version.clone());
+                let artifact_node = EntityKey::build_artifact(artifact.clone());
+                self.upsert_node(
+                    dependency_node.clone(),
+                    &[
+                        ("name", dependency.clone()),
+                        ("version", version.clone()),
+                        ("ecosystem", ecosystem.clone()),
+                    ],
+                );
+                self.upsert_node(artifact_node.clone(), &[("artifact", artifact.clone())]);
+                self.add_edge(
+                    dependency_node,
+                    artifact_node,
+                    Relationship::BuiltFrom,
+                    event.sequence,
+                );
+            }
+            EventKind::ArtifactPackage { artifact, package } => {
+                let artifact_node = EntityKey::build_artifact(artifact.clone());
+                let package_node = EntityKey::new(EntityKind::RpmPackage, package.clone());
+                self.upsert_node(artifact_node.clone(), &[("artifact", artifact.clone())]);
+                self.upsert_node(package_node.clone(), &[("package", package.clone())]);
+                self.add_edge(
+                    artifact_node,
+                    package_node,
+                    Relationship::InstalledFrom,
+                    event.sequence,
+                );
+            }
+            EventKind::SbomComponent {
+                artifact,
+                component,
+                version,
+            } => {
+                let artifact_node = EntityKey::build_artifact(artifact.clone());
+                let component_node = EntityKey::sbom_component(component.clone(), version.clone());
+                self.upsert_node(artifact_node.clone(), &[("artifact", artifact.clone())]);
+                self.upsert_node(
+                    component_node.clone(),
+                    &[
+                        ("component", component.clone()),
+                        ("version", version.clone()),
+                    ],
+                );
+                self.add_edge(
+                    artifact_node,
+                    component_node,
+                    Relationship::DependsOn,
+                    event.sequence,
+                );
             }
             EventKind::KernelModuleLoad { pid, module } => {
                 let process = EntityKey::process(*pid);
@@ -384,6 +552,32 @@ impl CausalityGraph {
                 );
                 self.add_edge(container, process, Relationship::Spawned, event.sequence);
             }
+            EventKind::SecurityEvent {
+                event_id,
+                pid,
+                summary,
+                severity,
+            } => {
+                let security_event = EntityKey::security_event(event_id.clone());
+                self.upsert_node(
+                    security_event.clone(),
+                    &[
+                        ("event_id", event_id.clone()),
+                        ("summary", summary.clone()),
+                        ("severity", severity.clone()),
+                    ],
+                );
+                if let Some(pid) = pid {
+                    let process = EntityKey::process(*pid);
+                    self.upsert_node(process.clone(), &[("pid", pid.to_string())]);
+                    self.add_edge(
+                        process,
+                        security_event,
+                        Relationship::Caused,
+                        event.sequence,
+                    );
+                }
+            }
         }
     }
 
@@ -429,6 +623,20 @@ impl CausalityGraph {
         None
     }
 
+    pub fn provenance_path(
+        &self,
+        source: &EntityKey,
+        target: &EntityKey,
+    ) -> Option<Vec<EntityKey>> {
+        let mut visited = BTreeSet::from([source.clone()]);
+        let mut path = vec![source.clone()];
+        if self.provenance_path_inner(source, target, &mut visited, &mut path) {
+            Some(path)
+        } else {
+            None
+        }
+    }
+
     pub fn causal_chain_to(&self, target: &EntityKey, max_depth: usize) -> Vec<EntityKey> {
         let mut chain = vec![target.clone()];
         let mut current = target.clone();
@@ -450,6 +658,41 @@ impl CausalityGraph {
 
         chain.reverse();
         chain
+    }
+
+    fn provenance_path_inner(
+        &self,
+        current: &EntityKey,
+        target: &EntityKey,
+        visited: &mut BTreeSet<EntityKey>,
+        path: &mut Vec<EntityKey>,
+    ) -> bool {
+        if current == target {
+            return true;
+        }
+
+        let Some(edge_indexes) = self.outgoing.get(current) else {
+            return false;
+        };
+        let mut edges = edge_indexes
+            .iter()
+            .map(|index| &self.edges[*index])
+            .filter(|edge| is_provenance_relationship(&edge.relationship))
+            .collect::<Vec<_>>();
+        edges.sort_by_key(|edge| provenance_relationship_preference(&edge.relationship));
+
+        for edge in edges {
+            if !visited.insert(edge.target.clone()) {
+                continue;
+            }
+            path.push(edge.target.clone());
+            if self.provenance_path_inner(&edge.target, target, visited, path) {
+                return true;
+            }
+            path.pop();
+        }
+
+        false
     }
 
     fn upsert_node(&mut self, key: EntityKey, attrs: &[(&str, String)]) {
@@ -542,9 +785,38 @@ fn relationship_preference(relationship: &Relationship) -> u8 {
         Relationship::Opened => 7,
         Relationship::Loaded => 8,
         Relationship::Installed => 9,
-        Relationship::TrustedBy => 10,
-        Relationship::DeniedBy => 11,
-        Relationship::Deleted => 12,
+        Relationship::DependsOn => 10,
+        Relationship::BuiltFrom => 11,
+        Relationship::InstalledFrom => 12,
+        Relationship::Owns => 13,
+        Relationship::Caused => 14,
+        Relationship::TrustedBy => 15,
+        Relationship::DeniedBy => 16,
+        Relationship::Deleted => 17,
+    }
+}
+
+fn is_provenance_relationship(relationship: &Relationship) -> bool {
+    matches!(
+        relationship,
+        Relationship::DependsOn
+            | Relationship::BuiltFrom
+            | Relationship::InstalledFrom
+            | Relationship::Owns
+            | Relationship::Installed
+            | Relationship::TrustedBy
+    )
+}
+
+fn provenance_relationship_preference(relationship: &Relationship) -> u8 {
+    match relationship {
+        Relationship::DependsOn => 0,
+        Relationship::BuiltFrom => 1,
+        Relationship::InstalledFrom => 2,
+        Relationship::Owns => 3,
+        Relationship::Installed => 4,
+        Relationship::TrustedBy => 5,
+        _ => 99,
     }
 }
 
@@ -605,5 +877,79 @@ mod tests {
             .causal_path(&EntityKey::process(1), &EntityKey::process(100))
             .expect("spawn path");
         assert_eq!(path, vec![EntityKey::process(1), EntityKey::process(100)]);
+    }
+
+    #[test]
+    fn supply_chain_events_create_trust_path_to_runtime_file() {
+        let mut graph = CausalityGraph::new();
+        let repository = "https://example.test/nginx.git".to_string();
+        let artifact = "nginx-1.26.0-2.el10.x86_64.rpm".to_string();
+        let package = "nginx-1.26.0-2.el10".to_string();
+        let file = "/usr/sbin/nginx".to_string();
+
+        for event in [
+            RuntimeEvent::new(
+                1,
+                0,
+                EventKind::SourceRepository {
+                    repository: repository.clone(),
+                    commit: "abc123".to_string(),
+                },
+            ),
+            RuntimeEvent::new(
+                2,
+                0,
+                EventKind::SourceDependency {
+                    repository: repository.clone(),
+                    dependency: "openssl".to_string(),
+                    version: "3.2.0".to_string(),
+                    ecosystem: "rpm".to_string(),
+                },
+            ),
+            RuntimeEvent::new(
+                3,
+                0,
+                EventKind::ArtifactDependency {
+                    artifact: artifact.clone(),
+                    dependency: "openssl".to_string(),
+                    version: "3.2.0".to_string(),
+                    ecosystem: "rpm".to_string(),
+                },
+            ),
+            RuntimeEvent::new(
+                4,
+                0,
+                EventKind::ArtifactPackage {
+                    artifact: artifact.clone(),
+                    package: package.clone(),
+                },
+            ),
+            RuntimeEvent::new(
+                5,
+                0,
+                EventKind::PackageFile {
+                    package,
+                    path: file.clone(),
+                    digest: "sha256:nginx".to_string(),
+                    signed: true,
+                },
+            ),
+        ] {
+            graph.ingest(&event);
+        }
+
+        let path = graph
+            .provenance_path(
+                &EntityKey::source_repository(repository),
+                &EntityKey::file(file),
+            )
+            .expect("source to installed file path");
+
+        assert_eq!(path.len(), 5);
+        assert_eq!(path[0].kind, EntityKind::SourceRepository);
+        assert_eq!(path[1].kind, EntityKind::Dependency);
+        assert_eq!(path[2].kind, EntityKind::BuildArtifact);
+        assert_eq!(path[3].kind, EntityKind::RpmPackage);
+        assert_eq!(path[4].kind, EntityKind::File);
     }
 }
