@@ -74,7 +74,10 @@
 - `platform::tests::resolver_jobs_include_context_in_stable_id`: Resolver job IDs include context so environment-specific jobs do not collide.
 - `platform::tests::resolver_service_creates_graph_record_for_store`: Resolver service creates graph records for the graph store.
 - `platform::tests::store_plans_invalidation_for_package_repository_advisory_and_policy_changes`: Graph store plans invalidation for package, repository, advisory, and policy changes.
+- `platform::tests::store_authorized_get_enforces_tenant_policy`: Graph store authorized lookup enforces tenant access policy.
 - `platform::tests::store_runs_impact_reports_across_records`: Graph store runs advisory impact across stored records.
+- `platform::tests::tenant_access_policy_allows_reader_for_granted_tenant`: Tenant access policy allows granted tenant reads.
+- `platform::tests::tenant_access_policy_blocks_cross_tenant_access`: Tenant access policy blocks access to ungranted tenants.
 - `platform::tests::work_queue_processes_jobs_fifo`: Resolver work queue processes jobs in FIFO order.
 - `policy::tests::policy_detects_denied_and_uncovered_packages`: Policy evaluation detects denied packages and missing coverage metadata.
 - `policy::tests::policy_detects_disallowed_sources`: Policy evaluation detects sources outside an allowlist.
@@ -125,6 +128,7 @@
 - `storage::tests::file_graph_store_persists_and_reads_snapshot_json`: File graph store persists and reads immutable snapshot JSON.
 - `storage::tests::file_graph_store_repeated_persist_is_idempotent`: File graph store repeated persistence does not duplicate index records.
 - `cli_adapters_outputs_adapter_coverage`: CLI adapters prints ecosystem adapter coverage.
+- `cli_access_outputs_tenant_isolation`: CLI access prints tenant policy and authorized lookup behavior.
 - `cli_demo_outputs_dependency_graph_sections`: CLI demo prints graph sections.
 - `cli_diff_outputs_context_difference`: CLI diff prints context-based graph differences.
 - `cli_evidence_outputs_normalized_summary`: CLI evidence prints normalized evidence summary and records.

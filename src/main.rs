@@ -1,8 +1,8 @@
 use graphscope::{
     ChangeEvent, CycloneDxView, EvidenceSubject, FileChangeEventLog, FileGraphStore, GraphDiff,
     GraphQuery, GraphSnapshot, ImpactReport, InMemoryGraphStore, RemediationReport, Resolver,
-    ResolverJob, ResolverService, SlaSummary, SpdxView, VexView, adapter_profiles, demo_advisories,
-    demo_policy_set, demo_repository, parse_evidence,
+    ResolverJob, ResolverService, SlaSummary, SpdxView, TenantAccessPolicy, TenantRole, VexView,
+    adapter_profiles, demo_advisories, demo_policy_set, demo_repository, parse_evidence,
 };
 
 fn main() {
@@ -22,6 +22,7 @@ fn main() {
         "invalidate" => print_invalidation(),
         "evidence" => print_evidence(args.get(2).map(String::as_str)),
         "adapters" => print_adapters(),
+        "access" => print_access(),
         "persist" => persist_demo(args.get(2).map(String::as_str)),
         "events" => persist_demo_events(args.get(2).map(String::as_str)),
         "explain" => print_explain(),
@@ -51,6 +52,7 @@ fn print_help() {
     println!("  graphscope invalidate   plan graph invalidation from metadata changes");
     println!("  graphscope evidence <path>   normalize a manifest, lockfile, or inventory");
     println!("  graphscope adapters   show ecosystem adapter coverage");
+    println!("  graphscope access   demonstrate tenant access isolation");
     println!("  graphscope persist <dir>   persist the demo graph snapshot to a file store");
     println!("  graphscope events <dir>   append demo invalidation events to a file log");
     println!("  graphscope explain   explain why urllib3 is present in the demo graph");
@@ -357,6 +359,42 @@ fn print_adapters() {
         if !profile.production_gaps.is_empty() {
             println!("  production gaps: {}", profile.production_gaps.join("; "));
         }
+    }
+}
+
+fn print_access() {
+    let (repository, roots, context) = demo_repository();
+    let record = ResolverService::new(repository).process(ResolverJob::new(
+        "customer-a",
+        "tuxcare-demo",
+        roots,
+        context,
+        env!("CARGO_PKG_VERSION"),
+    ));
+    let context_hash = record.snapshot.context_hash.clone();
+    let mut store = InMemoryGraphStore::new();
+    store.upsert(record);
+
+    let mut policy = TenantAccessPolicy::new();
+    policy.grant("analyst@cloudlinux", "customer-a", TenantRole::Analyst);
+
+    let allowed = policy.authorize("analyst@cloudlinux", "customer-a", TenantRole::Reader);
+    let denied = policy.authorize("analyst@cloudlinux", "customer-b", TenantRole::Reader);
+
+    println!("Tenant access demo");
+    println!("- allowed: {}", allowed.reason);
+    println!("- denied: {}", denied.reason);
+    match store.authorized_get(
+        &policy,
+        "analyst@cloudlinux",
+        "customer-a",
+        "tuxcare-demo",
+        &context_hash,
+        TenantRole::Reader,
+    ) {
+        Ok(Some(record)) => println!("- authorized snapshot: {}", record.snapshot.id),
+        Ok(None) => println!("- authorized snapshot: not found"),
+        Err(decision) => println!("- authorized snapshot denied: {}", decision.reason),
     }
 }
 

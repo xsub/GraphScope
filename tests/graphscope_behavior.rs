@@ -268,6 +268,21 @@ fn cli_adapters_outputs_adapter_coverage() {
 }
 
 #[test]
+fn cli_access_outputs_tenant_isolation() {
+    let output = Command::new(env!("CARGO_BIN_EXE_graphscope"))
+        .arg("access")
+        .output()
+        .expect("access command should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Tenant access demo"));
+    assert!(stdout.contains("allowed: principal analyst@cloudlinux has analyst access"));
+    assert!(stdout.contains("denied: principal analyst@cloudlinux has no access"));
+    assert!(stdout.contains("authorized snapshot: snap-"));
+}
+
+#[test]
 fn cli_persist_writes_file_store_snapshot() {
     let store_dir = std::env::temp_dir().join(format!(
         "graphscope-cli-persist-{}",

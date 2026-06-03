@@ -72,7 +72,10 @@ Status: MVP implemented with in-memory control-plane primitives.
   and policy changes. A durable file event log is implemented for replayable
   invalidation inputs; production event buses remain follow-up.
 - Add multi-tenant access controls and customer data isolation.
-  MVP graph records are keyed by tenant, product, and context hash.
+  MVP graph records are keyed by tenant, product, and context hash. Tenant
+  access policy primitives and authorized lookups are implemented through
+  `TenantAccessPolicy`, `InMemoryGraphStore::authorized_get`, and
+  `graphscope access`.
 - Add API and UI for "why is this dependency present?" investigations.
   Implemented as `GraphQuery::explain_package` and `graphscope explain`.
 

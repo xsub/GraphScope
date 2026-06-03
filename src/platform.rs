@@ -120,6 +120,22 @@ impl InMemoryGraphStore {
         ))
     }
 
+    pub fn authorized_get(
+        &self,
+        policy: &TenantAccessPolicy,
+        principal: &str,
+        tenant: &str,
+        product: &str,
+        context_hash: &str,
+        required_role: TenantRole,
+    ) -> Result<Option<&GraphRecord>, AccessDecision> {
+        let decision = policy.authorize(principal, tenant, required_role);
+        if !decision.allowed {
+            return Err(decision);
+        }
+        Ok(self.get(tenant, product, context_hash))
+    }
+
     pub fn records_for_package(&self, package: &PackageId) -> Vec<&GraphRecord> {
         self.records
             .values()
@@ -178,6 +194,99 @@ impl InMemoryGraphStore {
     ) -> Option<crate::query::PackageExplanation> {
         self.get(tenant, product, context_hash)
             .and_then(|record| GraphQuery::new(&record.result).explain_package(package))
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum TenantRole {
+    Reader,
+    Analyst,
+    Admin,
+}
+
+impl TenantRole {
+    fn allows(self, required: Self) -> bool {
+        self >= required
+    }
+}
+
+impl std::fmt::Display for TenantRole {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Reader => write!(f, "reader"),
+            Self::Analyst => write!(f, "analyst"),
+            Self::Admin => write!(f, "admin"),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct TenantAccessPolicy {
+    grants: BTreeMap<String, BTreeMap<String, TenantRole>>,
+}
+
+impl TenantAccessPolicy {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn grant(
+        &mut self,
+        principal: impl Into<String>,
+        tenant: impl Into<String>,
+        role: TenantRole,
+    ) {
+        self.grants
+            .entry(principal.into())
+            .or_default()
+            .insert(tenant.into(), role);
+    }
+
+    pub fn authorize(
+        &self,
+        principal: &str,
+        tenant: &str,
+        required_role: TenantRole,
+    ) -> AccessDecision {
+        let granted_role = self
+            .grants
+            .get(principal)
+            .and_then(|tenants| tenants.get(tenant))
+            .copied();
+
+        match granted_role {
+            Some(role) if role.allows(required_role) => AccessDecision::allow(format!(
+                "principal {principal} has {role} access to tenant {tenant}"
+            )),
+            Some(role) => AccessDecision::deny(format!(
+                "principal {principal} has {role} access to tenant {tenant}, but {required_role} is required"
+            )),
+            None => AccessDecision::deny(format!(
+                "principal {principal} has no access to tenant {tenant}"
+            )),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AccessDecision {
+    pub allowed: bool,
+    pub reason: String,
+}
+
+impl AccessDecision {
+    fn allow(reason: impl Into<String>) -> Self {
+        Self {
+            allowed: true,
+            reason: reason.into(),
+        }
+    }
+
+    fn deny(reason: impl Into<String>) -> Self {
+        Self {
+            allowed: false,
+            reason: reason.into(),
+        }
     }
 }
 
@@ -424,5 +533,69 @@ mod tests {
         assert!(!plan.is_empty());
         assert_eq!(plan.impacted_records.len(), 1);
         assert_eq!(plan.reasons[&plan.impacted_records[0]].len(), 4);
+    }
+
+    #[test]
+    fn tenant_access_policy_allows_reader_for_granted_tenant() {
+        let mut policy = TenantAccessPolicy::new();
+        policy.grant("analyst@cloudlinux", "customer-a", TenantRole::Analyst);
+
+        let decision = policy.authorize("analyst@cloudlinux", "customer-a", TenantRole::Reader);
+
+        assert!(decision.allowed);
+        assert!(decision.reason.contains("analyst access"));
+    }
+
+    #[test]
+    fn tenant_access_policy_blocks_cross_tenant_access() {
+        let mut policy = TenantAccessPolicy::new();
+        policy.grant("analyst@cloudlinux", "customer-a", TenantRole::Analyst);
+
+        let decision = policy.authorize("analyst@cloudlinux", "customer-b", TenantRole::Reader);
+
+        assert!(!decision.allowed);
+        assert!(decision.reason.contains("no access"));
+    }
+
+    #[test]
+    fn store_authorized_get_enforces_tenant_policy() {
+        let app = PackageId::internal("app");
+        let mut repo = InMemoryRepository::new();
+        repo.add(PackageVersion::new(app.clone(), "1.0"));
+        let job = ResolverJob::new(
+            "customer-a",
+            "portal",
+            vec![DependencyRequirement::new(app, VersionRequirement::any())],
+            ResolutionContext::cloudlinux_production_x86_64(),
+            "test",
+        );
+        let record = ResolverService::new(repo).process(job);
+        let context_hash = record.snapshot.context_hash.clone();
+        let mut store = InMemoryGraphStore::new();
+        store.upsert(record);
+        let mut policy = TenantAccessPolicy::new();
+        policy.grant("analyst@cloudlinux", "customer-a", TenantRole::Reader);
+
+        let allowed = store
+            .authorized_get(
+                &policy,
+                "analyst@cloudlinux",
+                "customer-a",
+                "portal",
+                &context_hash,
+                TenantRole::Reader,
+            )
+            .unwrap();
+        let denied = store.authorized_get(
+            &policy,
+            "analyst@cloudlinux",
+            "customer-b",
+            "portal",
+            &context_hash,
+            TenantRole::Reader,
+        );
+
+        assert!(allowed.is_some());
+        assert!(denied.unwrap_err().reason.contains("customer-b"));
     }
 }

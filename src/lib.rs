@@ -34,8 +34,8 @@ pub use model::{
     PackageRef, PackageSource, PackageVersion, ResolutionContext, Version, VersionRequirement,
 };
 pub use platform::{
-    ChangeEvent, GraphRecord, InMemoryGraphStore, InvalidationPlan, ResolverJob, ResolverService,
-    ResolverWorkQueue,
+    AccessDecision, ChangeEvent, GraphRecord, InMemoryGraphStore, InvalidationPlan, ResolverJob,
+    ResolverService, ResolverWorkQueue, TenantAccessPolicy, TenantRole,
 };
 pub use policy::{PolicyEvaluation, PolicyRule, PolicySet, PolicySeverity, PolicyViolation};
 pub use query::{

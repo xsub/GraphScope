@@ -140,7 +140,7 @@ Serves product workflows:
 
 The MVP exposes these workflows through CLI commands and public Rust APIs:
 `impact`, `report`, `sbom`, `spdx`, `vex`, `policy`, `sla`, `invalidate`,
-`evidence`, `adapters`, `persist`, `events`, `explain`, and `diff`.
+`evidence`, `adapters`, `access`, `persist`, `events`, `explain`, and `diff`.
 
 ## Universal Data Model
 
@@ -216,6 +216,7 @@ GraphScope is itself supply-chain infrastructure, so it needs strict provenance:
 - source allowlists per customer/product context;
 - immutable evidence and graph snapshots;
 - resolver version recorded on every graph;
+- tenant-scoped access decisions enforced before graph lookup;
 - policy separation between internal CloudLinux/TuxCare metadata and customer
   uploaded evidence.
 
