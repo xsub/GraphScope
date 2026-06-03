@@ -93,4 +93,5 @@
 - `test_cargo_features_expose_adapter_surfaces`: Pytest verifies Cargo feature flags expose planned adapter surfaces.
 - `test_github_workflows_exist_for_readme_badges`: Pytest verifies each README workflow badge has a backing workflow file.
 - `test_readme_badges_reference_ci_workflows_and_platforms`: Pytest verifies README badges cover CI workflows and platform capabilities.
+- `test_resolution_algorithm_documents_usability_contract`: Pytest verifies the resolution algorithm documents the user-facing resolver contract.
 - `test_test_inventory_lists_rust_and_pytest_contract_tests`: Pytest verifies the test inventory lists Rust and pytest contract tests.

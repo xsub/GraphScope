@@ -66,3 +66,18 @@ def test_test_inventory_lists_rust_and_pytest_contract_tests() -> None:
     assert len(lines) == len(set(lines))
     assert "test_cargo_features_expose_adapter_surfaces" in inventory
     assert "cli_demo_outputs_dependency_graph_sections" in inventory
+
+
+def test_resolution_algorithm_documents_usability_contract() -> None:
+    algorithm = read_text("docs/resolution-algorithm.md")
+
+    for token in [
+        "Resolution Usability Contract",
+        "Adapter-Driven Control Loop",
+        "Usability Guarantees",
+        "Decision Trace Shape",
+        "Why is this package present?",
+        "Every skipped edge is still visible.",
+        "Every ecosystem can stay native.",
+    ]:
+        assert token in algorithm

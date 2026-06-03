@@ -19,7 +19,7 @@
 ![Go Modules](https://img.shields.io/badge/Go%20modules-modeled-00add8?logo=go)
 ![Cargo](https://img.shields.io/badge/Cargo-modeled-orange?logo=rust)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-94%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-95%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Dependency Free](https://img.shields.io/badge/runtime%20deps-0-success)
 
