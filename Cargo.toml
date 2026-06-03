@@ -2,7 +2,7 @@
 name = "graphscope"
 version = "0.2.0"
 edition = "2024"
-license = "Apache-2.0"
+license = "UNLICENSED"
 description = "Unified software supply-chain dependency graph prototype"
 
 [features]

@@ -20,7 +20,7 @@
 ![Cargo](https://img.shields.io/badge/Cargo-modeled-orange?logo=rust)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
 ![Tests](https://img.shields.io/badge/tests-76%20passing-brightgreen)
-![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Dependency Free](https://img.shields.io/badge/runtime%20deps-0-success)
 
 GraphScope is a unified dependency graph system for AlmaLinux OS, CloudLinux OS,
