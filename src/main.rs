@@ -1,15 +1,15 @@
 use graphscope::{
-    ChangeEvent, CycloneDxView, GraphDiff, GraphQuery, GraphSnapshot, ImpactReport,
-    InMemoryGraphStore, RemediationReport, Resolver, ResolverJob, ResolverService, SlaSummary,
-    SpdxView, VexView, demo_advisories, demo_policy_set, demo_repository,
+    ChangeEvent, CycloneDxView, EvidenceSubject, GraphDiff, GraphQuery, GraphSnapshot,
+    ImpactReport, InMemoryGraphStore, RemediationReport, Resolver, ResolverJob, ResolverService,
+    SlaSummary, SpdxView, VexView, demo_advisories, demo_policy_set, demo_repository,
+    parse_evidence,
 };
 
 fn main() {
-    let command = std::env::args()
-        .nth(1)
-        .unwrap_or_else(|| "demo".to_string());
+    let args = std::env::args().collect::<Vec<_>>();
+    let command = args.get(1).map(String::as_str).unwrap_or("demo");
 
-    match command.as_str() {
+    match command {
         "demo" => run_demo(),
         "snapshot" => print_snapshot(),
         "impact" => print_impact(),
@@ -20,6 +20,7 @@ fn main() {
         "policy" => print_policy(),
         "sla" => print_sla(),
         "invalidate" => print_invalidation(),
+        "evidence" => print_evidence(args.get(2).map(String::as_str)),
         "explain" => print_explain(),
         "diff" => print_diff(),
         "help" | "--help" | "-h" => print_help(),
@@ -45,6 +46,7 @@ fn print_help() {
     println!("  graphscope policy   evaluate demo customer policy");
     println!("  graphscope sla   print an SLA-style risk summary");
     println!("  graphscope invalidate   plan graph invalidation from metadata changes");
+    println!("  graphscope evidence <path>   normalize a manifest, lockfile, or inventory");
     println!("  graphscope explain   explain why urllib3 is present in the demo graph");
     println!("  graphscope diff   compare demo graph with and without optional GPU context");
     println!("  graphscope help   show this help");
@@ -279,6 +281,70 @@ fn print_invalidation() {
                 println!("  reason: {reason}");
             }
         }
+    }
+}
+
+fn print_evidence(path: Option<&str>) {
+    let Some(path) = path else {
+        eprintln!("missing evidence path");
+        print_help();
+        std::process::exit(2);
+    };
+    let input = std::fs::read_to_string(path).unwrap_or_else(|error| {
+        eprintln!("failed to read {path}: {error}");
+        std::process::exit(2);
+    });
+    let catalog = parse_evidence(&input, path).unwrap_or_else(|error| {
+        eprintln!("failed to parse evidence: {error}");
+        std::process::exit(2);
+    });
+    let summary = catalog.summary();
+
+    println!("Evidence summary");
+    println!("Locator: {path}");
+    println!("Records: {}", summary.total_records);
+    println!("Packages: {}", summary.package_records);
+    println!("Dependencies: {}", summary.dependency_records);
+    print_counts("Kinds", &summary.by_kind);
+    print_counts("Ecosystems", &summary.by_ecosystem);
+    print_counts("Confidence", &summary.by_confidence);
+    println!("Records");
+    for record in catalog.records() {
+        println!(
+            "- {} {} {}",
+            record.id,
+            subject_summary(&record.subject),
+            record.summary
+        );
+    }
+}
+
+fn print_counts(label: &str, counts: &std::collections::BTreeMap<String, usize>) {
+    if counts.is_empty() {
+        return;
+    }
+    println!("{label}:");
+    for (name, count) in counts {
+        println!("- {name}: {count}");
+    }
+}
+
+fn subject_summary(subject: &EvidenceSubject) -> String {
+    match subject {
+        EvidenceSubject::Package(package) => format!("package {package}"),
+        EvidenceSubject::Dependency { requirement, .. } => {
+            format!(
+                "dependency {} {}",
+                requirement.target, requirement.requirement
+            )
+        }
+        EvidenceSubject::Advisory {
+            advisory_id,
+            package,
+        } => {
+            format!("advisory {advisory_id} {package}")
+        }
+        EvidenceSubject::Context(context) => format!("context {context}"),
     }
 }
 

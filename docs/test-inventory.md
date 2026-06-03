@@ -17,12 +17,16 @@
 - `evidence::tests::catalog_deduplicates_records_by_id`: Evidence catalog deduplicates records by stable ID.
 - `evidence::tests::catalog_queries_records_by_package`: Evidence catalog finds package-related records.
 - `evidence::tests::catalog_returns_locked_packages`: Evidence catalog returns locked package references.
+- `evidence::tests::catalog_summary_counts_records_by_shape_and_source`: Evidence summary counts records by subject shape, source kind, ecosystem, and confidence.
 - `evidence::tests::evidence_record_id_is_stable_for_identical_inputs`: Evidence records receive stable IDs for identical inputs.
 - `export::tests::cyclonedx_view_exports_components_and_dependencies`: CycloneDX view exports graph components and dependencies.
 - `export::tests::remediation_report_includes_paths_and_actions`: Remediation report includes dependency paths and actions.
 - `export::tests::sla_summary_combines_impact_and_policy_counts`: SLA summary combines advisory and policy counts.
 - `export::tests::spdx_view_exports_packages_and_relationships`: SPDX view exports packages and dependency relationships.
 - `export::tests::vex_view_exports_affected_and_unaffected_statements`: VEX view exports affected and not-affected statements.
+- `ingest::tests::detects_supported_evidence_formats`: Ingestion detects supported evidence formats from locators.
+- `ingest::tests::parse_evidence_dispatches_npm_package_lock`: Ingestion dispatch parses npm package-lock evidence.
+- `ingest::tests::parse_evidence_rejects_unknown_format`: Ingestion dispatch rejects unsupported evidence formats.
 - `lockfile::tests::parses_cargo_lock_package_blocks`: Cargo.lock parser emits locked crate evidence.
 - `lockfile::tests::parses_gradle_dependency_declarations`: Gradle parser emits declared dependency evidence.
 - `lockfile::tests::parses_go_mod_single_and_block_requirements`: Go module parser emits locked module evidence from single-line and block requirements.
@@ -114,6 +118,7 @@
 - `snapshot::tests::snapshot_json_keeps_commas_inside_string_values`: Snapshot JSON preserves commas inside string values.
 - `cli_demo_outputs_dependency_graph_sections`: CLI demo prints graph sections.
 - `cli_diff_outputs_context_difference`: CLI diff prints context-based graph differences.
+- `cli_evidence_outputs_normalized_summary`: CLI evidence prints normalized evidence summary and records.
 - `cli_explain_outputs_dependency_paths`: CLI explain prints dependency paths for a selected package.
 - `cli_help_outputs_usage`: CLI help prints usage.
 - `cli_invalidate_outputs_invalidation_plan`: CLI invalidate prints impacted graph snapshots and invalidation reasons.
@@ -133,6 +138,8 @@
 - `fixture_pip_lockfile_parses_locked_packages`: pip fixture parses locked package evidence.
 - `fixture_rpm_inventory_parses_observed_packages`: RPM fixture parses observed package evidence.
 - `public_api_can_build_and_resolve_custom_repository`: Public API builds and resolves a custom repository.
+- `public_api_auto_parses_maven_pom_fixture`: Public API auto-detects and parses a Maven POM fixture.
+- `public_api_auto_parses_rpm_inventory_fixture`: Public API auto-detects and parses an RPM inventory fixture.
 - `public_api_creates_stable_snapshot_from_resolved_graph`: Public API creates a stable graph snapshot from a resolved graph.
 - `public_api_exposes_skipped_dependency_reason`: Public API exposes skipped dependency reasons.
 - `public_api_reports_conflict_for_missing_candidate`: Public API reports missing candidate conflicts.

@@ -25,7 +25,7 @@
 ![SLA Summary](https://img.shields.io/badge/SLA-summary-0969da)
 ![Invalidation Planner](https://img.shields.io/badge/invalidation-planner-8250df)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-143%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-150%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Dependency Free](https://img.shields.io/badge/runtime%20deps-0-success)
 
@@ -68,6 +68,8 @@ package:
 - normalized evidence records plus parser coverage for pip requirements, Go
   modules, Cargo.lock, npm package-lock, Maven POM dependencies, Gradle
   dependency declarations, and RPM runtime inventories,
+- auto-detecting evidence ingestion workflow for manifests, lockfiles, and RPM
+  inventories,
 - transitive dependency graph output,
 - stable JSON graph snapshots with resolver decision traces,
 - conflict, skipped-dependency, and candidate-selection diagnostics,
@@ -101,6 +103,7 @@ cargo run -- vex
 cargo run -- policy
 cargo run -- sla
 cargo run -- invalidate
+cargo run -- evidence tests/fixtures/npm/package-lock.json
 cargo run -- explain
 cargo run -- diff
 ```
@@ -122,6 +125,8 @@ and Cargo packages for a CloudLinux x86_64 production context with GPU support.
 - `sla`: risk and remediation summary combining advisory and policy findings.
 - `invalidate`: impacted graph snapshots for package, repository, advisory, and
   policy changes.
+- `evidence <path>`: auto-detect and normalize a manifest, lockfile, or RPM
+  inventory into evidence records.
 - `explain`: why a demo dependency is present, including paths and trace events.
 - `diff`: graph comparison across production and production+GPU contexts.
 

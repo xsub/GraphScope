@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use crate::model::{DependencyRequirement, Ecosystem, PackageId, PackageRef};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -230,6 +232,57 @@ impl EvidenceCatalog {
             .cloned()
             .collect()
     }
+
+    pub fn summary(&self) -> EvidenceSummary {
+        EvidenceSummary::from_catalog(self)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct EvidenceSummary {
+    pub total_records: usize,
+    pub package_records: usize,
+    pub dependency_records: usize,
+    pub advisory_records: usize,
+    pub context_records: usize,
+    pub by_kind: BTreeMap<String, usize>,
+    pub by_ecosystem: BTreeMap<String, usize>,
+    pub by_confidence: BTreeMap<String, usize>,
+}
+
+impl EvidenceSummary {
+    pub fn from_catalog(catalog: &EvidenceCatalog) -> Self {
+        let mut summary = Self {
+            total_records: catalog.records.len(),
+            ..Self::default()
+        };
+
+        for record in &catalog.records {
+            *summary
+                .by_kind
+                .entry(format!("{:?}", record.source.kind))
+                .or_default() += 1;
+            if let Some(ecosystem) = &record.source.ecosystem {
+                *summary
+                    .by_ecosystem
+                    .entry(ecosystem.to_string())
+                    .or_default() += 1;
+            }
+            *summary
+                .by_confidence
+                .entry(format!("{:?}", record.confidence))
+                .or_default() += 1;
+
+            match &record.subject {
+                EvidenceSubject::Package(_) => summary.package_records += 1,
+                EvidenceSubject::Dependency { .. } => summary.dependency_records += 1,
+                EvidenceSubject::Advisory { .. } => summary.advisory_records += 1,
+                EvidenceSubject::Context(_) => summary.context_records += 1,
+            }
+        }
+
+        summary
+    }
 }
 
 pub(crate) fn stable_hash(input: &str) -> u64 {
@@ -244,7 +297,7 @@ pub(crate) fn stable_hash(input: &str) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{PackageId, Version};
+    use crate::model::{DependencyRequirement, PackageId, Version, VersionRequirement};
 
     #[test]
     fn evidence_record_id_is_stable_for_identical_inputs() {
@@ -323,5 +376,46 @@ mod tests {
         ));
 
         assert_eq!(catalog.locked_packages(), vec![package]);
+    }
+
+    #[test]
+    fn catalog_summary_counts_records_by_shape_and_source() {
+        let package_source = EvidenceSource::new(
+            EvidenceKind::Lockfile,
+            Some(Ecosystem::Npm),
+            "package-lock.json",
+        );
+        let dependency_source =
+            EvidenceSource::new(EvidenceKind::Manifest, Some(Ecosystem::Maven), "pom.xml");
+        let mut catalog = EvidenceCatalog::new();
+        catalog.add(EvidenceRecord::package(
+            package_source,
+            PackageRef::new(
+                PackageId::npm(None::<String>, "react"),
+                Version::parse("18.3.1"),
+            ),
+            EvidenceConfidence::Locked,
+            "locked npm package",
+        ));
+        catalog.add(EvidenceRecord::dependency(
+            dependency_source,
+            None,
+            DependencyRequirement::new(
+                PackageId::maven("org.slf4j", "slf4j-api"),
+                VersionRequirement::parse("2.0.13"),
+            ),
+            EvidenceConfidence::Declared,
+            "declared Maven dependency",
+        ));
+
+        let summary = catalog.summary();
+
+        assert_eq!(summary.total_records, 2);
+        assert_eq!(summary.package_records, 1);
+        assert_eq!(summary.dependency_records, 1);
+        assert_eq!(summary.by_kind["Lockfile"], 1);
+        assert_eq!(summary.by_kind["Manifest"], 1);
+        assert_eq!(summary.by_ecosystem["npm"], 1);
+        assert_eq!(summary.by_confidence["Declared"], 1);
     }
 }

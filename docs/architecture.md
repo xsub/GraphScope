@@ -31,7 +31,8 @@ facts. It records immutable raw evidence and emits normalized evidence events.
 
 The MVP includes parser-level normalized evidence for pip requirements, Go
 modules, Cargo.lock, npm package-lock, Maven POM dependencies, Gradle dependency
-declarations, and RPM runtime inventories.
+declarations, and RPM runtime inventories. The `graphscope evidence <path>`
+workflow auto-detects those formats and emits a normalized evidence summary.
 
 ### Evidence Store
 

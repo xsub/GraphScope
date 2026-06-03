@@ -2,7 +2,7 @@ use std::process::Command;
 
 use graphscope::{
     DependencyRequirement, Ecosystem, EvidenceConfidence, GraphSnapshot, PackageId, PackageVersion,
-    Resolver, VersionRequirement, demo_repository, parse_cargo_lock_packages,
+    Resolver, VersionRequirement, demo_repository, parse_cargo_lock_packages, parse_evidence,
     parse_go_mod_requirements, parse_gradle_dependencies, parse_maven_pom_dependencies,
     parse_npm_package_lock, parse_pip_requirements_lock, parse_rpm_inventory,
 };
@@ -232,6 +232,26 @@ fn cli_invalidate_outputs_invalidation_plan() {
 }
 
 #[test]
+fn cli_evidence_outputs_normalized_summary() {
+    let path = format!(
+        "{}/tests/fixtures/npm/package-lock.json",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_graphscope"))
+        .arg("evidence")
+        .arg(path)
+        .output()
+        .expect("evidence command should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Evidence summary"));
+    assert!(stdout.contains("Records: 3"));
+    assert!(stdout.contains("Ecosystems:"));
+    assert!(stdout.contains("package npm:react@18.3.1"));
+}
+
+#[test]
 fn cli_explain_outputs_dependency_paths() {
     let output = Command::new(env!("CARGO_BIN_EXE_graphscope"))
         .arg("explain")
@@ -366,6 +386,34 @@ fn fixture_rpm_inventory_parses_observed_packages() {
             .all(|record| record.confidence == EvidenceConfidence::Observed)
     );
     assert_eq!(catalog.by_package(&PackageId::rpm("openssl-libs")).len(), 1);
+}
+
+#[test]
+fn public_api_auto_parses_maven_pom_fixture() {
+    let input = include_str!("fixtures/maven/pom.xml");
+    let catalog = parse_evidence(input, "tests/fixtures/maven/pom.xml").unwrap();
+
+    assert_eq!(catalog.summary().dependency_records, 3);
+    assert_eq!(
+        catalog
+            .by_package(&PackageId::maven("org.slf4j", "slf4j-api"))
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn public_api_auto_parses_rpm_inventory_fixture() {
+    let input = include_str!("fixtures/rpm/rpm-qa.txt");
+    let catalog = parse_evidence(input, "tests/fixtures/rpm/rpm-qa.txt").unwrap();
+
+    assert_eq!(catalog.summary().package_records, 3);
+    assert_eq!(
+        catalog
+            .by_package(&PackageId::rpm("kernelcare-agent"))
+            .len(),
+        1
+    );
 }
 
 #[test]

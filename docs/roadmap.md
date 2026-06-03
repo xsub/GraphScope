@@ -23,6 +23,8 @@ Status: MVP implemented; production ecosystem adapters remain follow-up work.
   parsing, npm package-lock parsing, Maven dependency parsing, Gradle dependency
   parsing, RPM inventory parsing, and normalized evidence catalog are
   implemented.
+- Add auto-detecting evidence ingestion workflow for supported fixture formats.
+  Implemented through `parse_evidence` and `graphscope evidence <path>`.
 - Integrate libsolv or DNF metadata for RPM resolution.
 - Add Maven effective-POM and Gradle dependency insight ingestion.
 - Add npm package-lock and peer dependency propagation.

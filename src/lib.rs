@@ -2,6 +2,7 @@ pub mod advisory;
 pub mod demo;
 pub mod evidence;
 pub mod export;
+pub mod ingest;
 pub mod lockfile;
 pub mod model;
 pub mod platform;
@@ -15,9 +16,10 @@ pub use advisory::{Advisory, AdvisorySeverity, ImpactFinding, ImpactReport, VexS
 pub use demo::{demo_advisories, demo_policy_set, demo_repository};
 pub use evidence::{
     EvidenceCatalog, EvidenceConfidence, EvidenceKind, EvidenceRecord, EvidenceSource,
-    EvidenceSubject,
+    EvidenceSubject, EvidenceSummary,
 };
 pub use export::{CycloneDxView, RemediationReport, SlaSummary, SpdxView, VexView};
+pub use ingest::{EvidenceFormat, IngestError, parse_evidence};
 pub use lockfile::{
     parse_cargo_lock_packages, parse_go_mod_requirements, parse_gradle_dependencies,
     parse_maven_pom_dependencies, parse_npm_package_lock, parse_pip_requirements_lock,
