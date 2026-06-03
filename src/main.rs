@@ -1,8 +1,8 @@
 use graphscope::{
     ChangeEvent, CycloneDxView, EvidenceSubject, FileChangeEventLog, FileGraphStore, GraphDiff,
     GraphQuery, GraphSnapshot, ImpactReport, InMemoryGraphStore, RemediationReport, Resolver,
-    ResolverJob, ResolverService, SlaSummary, SpdxView, VexView, demo_advisories, demo_policy_set,
-    demo_repository, parse_evidence,
+    ResolverJob, ResolverService, SlaSummary, SpdxView, VexView, adapter_profiles, demo_advisories,
+    demo_policy_set, demo_repository, parse_evidence,
 };
 
 fn main() {
@@ -21,6 +21,7 @@ fn main() {
         "sla" => print_sla(),
         "invalidate" => print_invalidation(),
         "evidence" => print_evidence(args.get(2).map(String::as_str)),
+        "adapters" => print_adapters(),
         "persist" => persist_demo(args.get(2).map(String::as_str)),
         "events" => persist_demo_events(args.get(2).map(String::as_str)),
         "explain" => print_explain(),
@@ -49,6 +50,7 @@ fn print_help() {
     println!("  graphscope sla   print an SLA-style risk summary");
     println!("  graphscope invalidate   plan graph invalidation from metadata changes");
     println!("  graphscope evidence <path>   normalize a manifest, lockfile, or inventory");
+    println!("  graphscope adapters   show ecosystem adapter coverage");
     println!("  graphscope persist <dir>   persist the demo graph snapshot to a file store");
     println!("  graphscope events <dir>   append demo invalidation events to a file log");
     println!("  graphscope explain   explain why urllib3 is present in the demo graph");
@@ -330,6 +332,31 @@ fn print_counts(label: &str, counts: &std::collections::BTreeMap<String, usize>)
     println!("{label}:");
     for (name, count) in counts {
         println!("- {name}: {count}");
+    }
+}
+
+fn print_adapters() {
+    println!("Adapter coverage");
+    for profile in adapter_profiles() {
+        let formats = profile
+            .evidence_formats
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(", ");
+        let capabilities = profile
+            .capabilities
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(", ");
+        println!(
+            "- {} via {}: formats=[{}] capabilities=[{}]",
+            profile.ecosystem, profile.package_manager, formats, capabilities
+        );
+        if !profile.production_gaps.is_empty() {
+            println!("  production gaps: {}", profile.production_gaps.join("; "));
+        }
     }
 }
 

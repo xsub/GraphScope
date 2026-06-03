@@ -18,6 +18,7 @@
 ![npm](https://img.shields.io/badge/npm-modeled-cb3837?logo=npm)
 ![Go Modules](https://img.shields.io/badge/Go%20modules-modeled-00add8?logo=go)
 ![Cargo](https://img.shields.io/badge/Cargo-modeled-orange?logo=rust)
+![Adapter Matrix](https://img.shields.io/badge/adapter%20matrix-executable-0969da)
 ![CycloneDX](https://img.shields.io/badge/CycloneDX-1.6-0b7)
 ![SPDX](https://img.shields.io/badge/SPDX-2.3-4398d1)
 ![VEX](https://img.shields.io/badge/VEX-export-6f42c1)
@@ -27,7 +28,7 @@
 ![File Store](https://img.shields.io/badge/file%20store-durable%20MVP-0a7)
 ![Event Log](https://img.shields.io/badge/event%20log-durable%20MVP-7952b3)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-157%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-161%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Dependency Free](https://img.shields.io/badge/runtime%20deps-0-success)
 
@@ -72,6 +73,8 @@ package:
   dependency declarations, and RPM runtime inventories,
 - auto-detecting evidence ingestion workflow for manifests, lockfiles, and RPM
   inventories,
+- executable adapter coverage matrix for RPM, Python, Maven, Gradle, npm, Go,
+  and Cargo MVP capabilities,
 - transitive dependency graph output,
 - stable JSON graph snapshots with resolver decision traces,
 - conflict, skipped-dependency, and candidate-selection diagnostics,
@@ -109,6 +112,7 @@ cargo run -- policy
 cargo run -- sla
 cargo run -- invalidate
 cargo run -- evidence tests/fixtures/npm/package-lock.json
+cargo run -- adapters
 cargo run -- persist /tmp/graphscope-store
 cargo run -- events /tmp/graphscope-store
 cargo run -- explain
@@ -134,6 +138,7 @@ and Cargo packages for a CloudLinux x86_64 production context with GPU support.
   policy changes.
 - `evidence <path>`: auto-detect and normalize a manifest, lockfile, or RPM
   inventory into evidence records.
+- `adapters`: ecosystem adapter coverage and production gaps.
 - `persist <dir>`: resolve and persist the demo graph snapshot into a durable
   file-backed store.
 - `events <dir>`: persist sample invalidation events into a replayable file log.

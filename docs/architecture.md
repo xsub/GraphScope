@@ -66,8 +66,11 @@ Resolver adapters should exist per package-manager family:
 
 The Rust implementation in this repository provides the shared model,
 context-aware resolver, explainable decision trace, and stable graph snapshot
-contract. Production adapters should plug ecosystem-native candidate enumeration
-and conflict mediation into the same graph contract.
+contract. It also exposes an executable adapter coverage matrix through
+`adapter_profiles` and `graphscope adapters`, covering MVP parser and resolver
+semantics for RPM, Python, Maven, Gradle, npm, Go, and Cargo. Production
+adapters should plug ecosystem-native candidate enumeration and conflict
+mediation into the same graph contract.
 
 ### Graph Store
 
@@ -137,7 +140,7 @@ Serves product workflows:
 
 The MVP exposes these workflows through CLI commands and public Rust APIs:
 `impact`, `report`, `sbom`, `spdx`, `vex`, `policy`, `sla`, `invalidate`,
-`evidence`, `persist`, `events`, `explain`, and `diff`.
+`evidence`, `adapters`, `persist`, `events`, `explain`, and `diff`.
 
 ## Universal Data Model
 

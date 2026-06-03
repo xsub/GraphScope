@@ -1,5 +1,8 @@
 # Test Inventory
 
+- `adapter::tests::adapter_profiles_cover_supported_evidence_formats`: Adapter profiles cover every supported evidence input format.
+- `adapter::tests::adapter_profiles_have_stable_cli_order`: Adapter profiles are sorted for stable CLI output.
+- `adapter::tests::adapter_profiles_report_ecosystem_specific_capabilities`: Adapter profiles expose ecosystem-specific resolver capabilities.
 - `advisory::tests::advisory_matches_selected_package_version`: Advisory matching detects affected selected package versions.
 - `advisory::tests::impact_report_includes_dependency_paths_and_dependents`: Impact reports include dependency paths and reverse dependents.
 - `advisory::tests::impact_report_orders_highest_severity_first`: Impact reports order highest-severity findings first.
@@ -121,6 +124,7 @@
 - `storage::tests::file_graph_store_lists_and_finds_context_records`: File graph store lists stored snapshots and finds records by context.
 - `storage::tests::file_graph_store_persists_and_reads_snapshot_json`: File graph store persists and reads immutable snapshot JSON.
 - `storage::tests::file_graph_store_repeated_persist_is_idempotent`: File graph store repeated persistence does not duplicate index records.
+- `cli_adapters_outputs_adapter_coverage`: CLI adapters prints ecosystem adapter coverage.
 - `cli_demo_outputs_dependency_graph_sections`: CLI demo prints graph sections.
 - `cli_diff_outputs_context_difference`: CLI diff prints context-based graph differences.
 - `cli_evidence_outputs_normalized_summary`: CLI evidence prints normalized evidence summary and records.

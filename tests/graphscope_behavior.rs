@@ -253,6 +253,21 @@ fn cli_evidence_outputs_normalized_summary() {
 }
 
 #[test]
+fn cli_adapters_outputs_adapter_coverage() {
+    let output = Command::new(env!("CARGO_BIN_EXE_graphscope"))
+        .arg("adapters")
+        .output()
+        .expect("adapters command should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Adapter coverage"));
+    assert!(stdout.contains("python via pip/Poetry"));
+    assert!(stdout.contains("rpm via DNF/RPM"));
+    assert!(stdout.contains("minimal version selection"));
+}
+
+#[test]
 fn cli_persist_writes_file_store_snapshot() {
     let store_dir = std::env::temp_dir().join(format!(
         "graphscope-cli-persist-{}",

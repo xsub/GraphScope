@@ -25,6 +25,8 @@ Status: MVP implemented; production ecosystem adapters remain follow-up work.
   implemented.
 - Add auto-detecting evidence ingestion workflow for supported fixture formats.
   Implemented through `parse_evidence` and `graphscope evidence <path>`.
+- Add executable adapter coverage matrix for supported ecosystems.
+  Implemented through `adapter_profiles` and `graphscope adapters`.
 - Integrate libsolv or DNF metadata for RPM resolution.
 - Add Maven effective-POM and Gradle dependency insight ingestion.
 - Add npm package-lock and peer dependency propagation.

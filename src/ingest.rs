@@ -8,7 +8,7 @@ use crate::lockfile::{
     parse_pip_requirements_lock, parse_rpm_inventory,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EvidenceFormat {
     PipRequirements,
     GoMod,
