@@ -1,0 +1,30 @@
+name: Supply Chain
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  supply-chain:
+    name: Locked metadata and dependency surface
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Validate locked metadata
+        run: cargo metadata --locked --format-version 1 --no-deps
+
+      - name: Validate dependency-free prototype
+        run: cargo tree --locked
+
+      - name: Test locked dependency graph
+        run: cargo test --all-features --locked

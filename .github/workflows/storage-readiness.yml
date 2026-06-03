@@ -1,0 +1,40 @@
+name: Storage Readiness
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  feature-build:
+    name: Build ${{ matrix.feature }} feature
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        feature:
+          - sqlite
+          - rocksdb
+          - rpm
+          - python
+          - java
+          - javascript
+          - go
+          - cargo-adapter
+          - all-adapters
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build feature surface
+        run: cargo test --locked --features "${{ matrix.feature }}"

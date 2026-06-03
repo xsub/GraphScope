@@ -1,0 +1,38 @@
+name: AlmaLinux 10 CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  almalinux:
+    name: AlmaLinux 10 native build
+    runs-on: ubuntu-latest
+    container:
+      image: almalinux:10
+    steps:
+      - name: Install build tools
+        run: dnf -y install ca-certificates gcc git gzip tar
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Show platform
+        run: |
+          cat /etc/os-release
+          rustc --version
+          cargo --version
+
+      - name: Test on AlmaLinux 10
+        run: cargo test --all-features --locked
+
+      - name: Run demo on AlmaLinux 10
+        run: cargo run --locked -- demo

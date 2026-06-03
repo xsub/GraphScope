@@ -1,0 +1,78 @@
+# Test Inventory
+
+- `demo::tests::demo_context_enables_gpu_optional_dependency`: Demo context enables optional GPU dependency resolution.
+- `demo::tests::demo_graph_activates_gpu_extra_on_x86_64`: Demo graph includes the GPU extra on x86_64.
+- `demo::tests::demo_graph_honors_maven_exclusion`: Demo graph excludes the Maven `commons-logging` transitive dependency.
+- `demo::tests::demo_graph_includes_core_cloudlinux_and_tuxcare_packages`: Demo graph includes core CloudLinux and TuxCare packages.
+- `demo::tests::demo_graph_resolves_without_conflicts`: Demo graph resolves with no conflicts.
+- `demo::tests::demo_graph_skips_macos_optional_dependency_on_linux`: Demo graph skips macOS-only npm dependency on Linux.
+- `demo::tests::demo_graph_skips_npm_development_dependency_in_production`: Demo graph skips npm development dependency in production.
+- `demo::tests::demo_graph_skips_python_backport_on_python_311`: Demo graph skips Python backport when Python 3.11 is active.
+- `demo::tests::demo_graph_uses_go_minimal_version_selection`: Demo graph uses Go minimal version selection.
+- `demo::tests::demo_repository_contains_expected_candidate_count`: Demo repository contains the expected candidate and root counts.
+- `model::tests::any_context_predicates_match_specific_context_values`: Wildcard OS, distro, and architecture predicates match concrete context values.
+- `model::tests::caret_requirement_matches_semver_compatible_versions`: Caret ranges accept compatible semver versions.
+- `model::tests::cloudlinux_context_includes_runtime_build_system_and_weak_scopes`: CloudLinux context includes runtime, build, system, and weak scopes.
+- `model::tests::comma_ranges_are_conjunctive`: Comma-separated version ranges are treated as AND constraints.
+- `model::tests::comparison_clauses_include_and_exclude_boundaries`: Version comparison clauses honor inclusive and exclusive boundaries.
+- `model::tests::composed_context_predicates_support_any_all_and_not`: Context predicates support any, all, and not composition.
+- `model::tests::dependency_builder_records_relation_exclusion_and_evidence`: Dependency builder preserves relation, exclusions, and evidence.
+- `model::tests::exact_requirement_uses_normalized_equality`: Exact requirements use normalized version equality.
+- `model::tests::feature_profile_repo_and_distro_predicates_match_context`: Feature, profile, repository, and distro predicates match context.
+- `model::tests::inactive_context_condition_reports_predicate_reason`: Inactive dependency reports the failed context predicate.
+- `model::tests::internal_artifact_metadata_is_signed_and_proprietary`: Internal artifact metadata is signed and proprietary.
+- `model::tests::language_version_predicate_matches_runtime_version`: Language version predicates match configured runtime versions.
+- `model::tests::normalized_versions_compare_and_hash_consistently`: Normalized versions compare and hash consistently.
+- `model::tests::optional_dependency_without_optional_context_is_inactive`: Optional feature dependency is inactive when feature is not enabled.
+- `model::tests::optional_feature_dependency_is_active_when_scope_and_feature_are_enabled`: Optional feature dependency activates when scope and feature are enabled.
+- `model::tests::package_display_includes_namespace_when_present`: Package display includes namespace when present.
+- `model::tests::package_version_package_ref_round_trips_identity_and_version`: Package version converts to package reference without losing identity.
+- `model::tests::purl_like_format_distinguishes_plain_and_namespaced_packages`: PURL-like formatting distinguishes plain and namespaced packages.
+- `model::tests::python_package_names_are_normalized`: Python package names normalize case, dots, and underscores.
+- `model::tests::scope_excluded_dependency_is_inactive`: Dependency is inactive when its scope is excluded by context.
+- `model::tests::stable_release_sorts_after_prerelease`: Stable releases sort after prereleases.
+- `model::tests::tilde_requirement_limits_major_version_when_only_major_is_specified`: Single-part tilde ranges stay within the major version.
+- `model::tests::tilde_requirement_limits_minor_version_when_minor_is_specified`: Multi-part tilde ranges stay within the minor version.
+- `model::tests::version_ordering_uses_numeric_segments`: Version ordering compares numeric segments numerically.
+- `model::tests::version_parts_expose_numeric_components`: Version parser exposes numeric version parts.
+- `model::tests::version_requirement_display_preserves_clause_meaning`: Version requirement display preserves clause meaning.
+- `model::tests::wildcard_and_empty_requirements_match_any_version`: Wildcard and empty requirements match any version.
+- `model::tests::with_optional_enables_optional_resolution_scope`: Optional context enables optional dependency scope.
+- `model::tests::zero_major_caret_is_conservative`: Zero-major caret ranges stay within the compatible minor range.
+- `repository::tests::added_candidates_are_sorted_by_version`: Repository returns candidates sorted by version.
+- `repository::tests::empty_repository_returns_no_candidates`: Empty repository returns no package candidates.
+- `repository::tests::package_count_counts_all_versions_across_packages`: Repository package count includes all versions across packages.
+- `repository::tests::with_builder_adds_package_and_returns_repository`: Repository builder adds a package and returns the repository.
+- `resolver::tests::changed_selection_prunes_orphaned_transitive_nodes`: Resolver prunes stale transitive nodes after selection changes.
+- `resolver::tests::combined_constraints_can_narrow_selected_version_without_conflict`: Resolver narrows compatible constraints without conflict.
+- `resolver::tests::conflict_diagnostic_includes_all_constraint_evidence`: Conflict diagnostics retain evidence from all constraints.
+- `resolver::tests::conflicting_constraints_are_reported`: Resolver reports incompatible dependency constraints.
+- `resolver::tests::context_specific_optional_gpu_dependency_is_activated_by_feature`: Resolver activates optional GPU dependency by feature and context.
+- `resolver::tests::custom_options_can_force_minimal_python_selection`: Custom resolver options can force minimal Python version selection.
+- `resolver::tests::cycles_do_not_expand_forever`: Cyclic dependency graphs terminate resolution.
+- `resolver::tests::distro_specific_dependency_is_active_for_cloudlinux`: CloudLinux-specific dependency activates in CloudLinux context.
+- `resolver::tests::duplicate_root_requirements_do_not_duplicate_edges`: Duplicate root requirements do not duplicate graph edges.
+- `resolver::tests::go_uses_minimal_compatible_version_selection`: Go dependencies use minimal compatible version selection.
+- `resolver::tests::highest_compatible_policy_selects_highest_matching_python_version`: Default policy selects highest matching Python version.
+- `resolver::tests::language_version_predicate_filters_dependencies`: Language version predicate filters inactive dependencies.
+- `resolver::tests::maven_style_exclusion_skips_transitive_dependency`: Maven-style exclusions skip transitive dependencies.
+- `resolver::tests::missing_package_candidate_records_conflict`: Missing package candidates produce conflict diagnostics.
+- `resolver::tests::npm_parallel_slots_allow_different_versions_per_parent`: npm parallel slots allow different versions per parent.
+- `resolver::tests::platform_dependency_is_skipped_when_context_does_not_match`: Platform-specific dependency is skipped when context does not match.
+- `resolver::tests::python_global_slot_conflicts_on_incompatible_versions`: Python global slot reports incompatible version conflict.
+- `resolver::tests::relation_metadata_is_preserved_on_resolved_edge`: Resolved edges preserve relation and scope metadata.
+- `resolver::tests::root_dependency_skipped_by_context_creates_no_nodes`: Root dependency skipped by context creates no nodes.
+- `resolver::tests::selected_by_records_multiple_requesters_for_shared_dependency`: Shared dependency records multiple requesters.
+- `resolver::tests::selected_version_returns_none_for_unresolved_package`: Selected version lookup returns none for unresolved package.
+- `resolver::tests::test_scope_dependency_is_skipped_in_production_context`: Test-scope dependency is skipped in production context.
+- `resolver::tests::unresolved_transitive_dependency_keeps_resolved_parent_and_reports_conflict`: Missing transitive dependency keeps parent and reports conflict.
+- `cli_demo_outputs_dependency_graph_sections`: CLI demo prints graph sections.
+- `cli_help_outputs_usage`: CLI help prints usage.
+- `public_api_can_build_and_resolve_custom_repository`: Public API builds and resolves a custom repository.
+- `public_api_exposes_skipped_dependency_reason`: Public API exposes skipped dependency reasons.
+- `public_api_reports_conflict_for_missing_candidate`: Public API reports missing candidate conflicts.
+- `public_api_resolves_demo_graph_without_conflicts`: Public API resolves the demo graph without conflicts.
+- `test_cargo_features_expose_adapter_surfaces`: Pytest verifies Cargo feature flags expose planned adapter surfaces.
+- `test_github_workflows_exist_for_readme_badges`: Pytest verifies each README workflow badge has a backing workflow file.
+- `test_readme_badges_reference_ci_workflows_and_platforms`: Pytest verifies README badges cover CI workflows and platform capabilities.
+- `test_test_inventory_lists_rust_and_pytest_contract_tests`: Pytest verifies the test inventory lists Rust and pytest contract tests.
