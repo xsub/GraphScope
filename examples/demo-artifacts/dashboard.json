@@ -1,0 +1,1 @@
+{"format":"GraphScope Risk Dashboard","product_count":1,"affected_products":1,"high_risk_products":1,"total_affected_findings":2,"total_policy_errors":1,"total_policy_warnings":6,"total_remediation_actions":3,"max_risk_score":93,"risk_band":"critical","highest_risk_product":"customer-a/tuxcare-demo"}

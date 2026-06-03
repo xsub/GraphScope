@@ -1,0 +1,99 @@
+GraphScope unified dependency graph demo
+Context: CloudLinux 9 x86_64 production, ELS + KernelCare, GPU extra enabled
+Candidate catalog: 31 package versions
+
+Selected packages
+- depth=0 internal:tuxcare-supply-chain-platform@1.0.0 selected_by=root
+- depth=2 rpm:kernel-headers@5.14.0 selected_by=rpm:kernelcare-agent@3.1.4
+- depth=1 rpm:kernelcare-agent@3.1.4 selected_by=internal:tuxcare-supply-chain-platform@1.0.0
+- depth=2 rpm:libdnf@0.73.1 selected_by=rpm:kernelcare-agent@3.1.4
+- depth=2 rpm:openssl-libs@3.2.2 selected_by=rpm:kernelcare-agent@3.1.4
+- depth=2 rpm:tuxcare-els-release@9.0 selected_by=rpm:kernelcare-agent@3.1.4
+- depth=3 python:certifi@2024.7.4 selected_by=python:requests@2.32.3
+- depth=2 python:grpcio@1.64.1 selected_by=python:tuxcare-vuln-scanner@1.4.2
+- depth=2 python:nvidia-ml-py@12.555.43 selected_by=python:tuxcare-vuln-scanner@1.4.2
+- depth=2 python:requests@2.32.3 selected_by=python:tuxcare-vuln-scanner@1.4.2
+- depth=1 python:tuxcare-vuln-scanner@1.4.2 selected_by=internal:tuxcare-supply-chain-platform@1.0.0
+- depth=3 python:urllib3@2.2.2 selected_by=python:requests@2.32.3
+- depth=2 maven:ch.qos.logback/logback-classic@1.5.6 selected_by=maven:com.cloudlinux.tuxcare/vulnerability-service@2.3.0
+- depth=1 maven:com.cloudlinux.tuxcare/vulnerability-service@2.3.0 selected_by=internal:tuxcare-supply-chain-platform@1.0.0
+- depth=2 maven:com.fasterxml.jackson.core/jackson-databind@2.17.2 selected_by=maven:com.cloudlinux.tuxcare/vulnerability-service@2.3.0
+- depth=2 maven:org.slf4j/slf4j-api@2.0.13 selected_by=maven:ch.qos.logback/logback-classic@1.5.6,maven:com.cloudlinux.tuxcare/vulnerability-service@2.3.0
+- depth=2 npm:react@18.3.1 selected_by=npm:tuxcare-portal-ui@5.1.0
+- depth=3 npm:scheduler@0.23.2 selected_by=npm:react@18.3.1
+- depth=1 npm:tuxcare-portal-ui@5.1.0 selected_by=internal:tuxcare-supply-chain-platform@1.0.0
+- depth=1 go:cloudlinux.com/tuxcare/telemetry-collector@0.8.0 selected_by=internal:tuxcare-supply-chain-platform@1.0.0
+- depth=2 go:golang.org/x/net@0.24.0 selected_by=go:cloudlinux.com/tuxcare/telemetry-collector@0.8.0
+- depth=2 go:google.golang.org/protobuf@1.33.0 selected_by=go:cloudlinux.com/tuxcare/telemetry-collector@0.8.0
+- depth=2 cargo:petgraph@0.6.5 selected_by=cargo:rpm-diff-engine@0.3.2
+- depth=1 cargo:rpm-diff-engine@0.3.2 selected_by=internal:tuxcare-supply-chain-platform@1.0.0
+- depth=2 cargo:rpm-rs@0.1.2 selected_by=cargo:rpm-diff-engine@0.3.2
+
+Activated edges
+- root -> internal:tuxcare-supply-chain-platform@1.0.0 [requires runtime *] (demo root)
+- internal:tuxcare-supply-chain-platform@1.0.0 -> rpm:kernelcare-agent@3.1.4 [requires runtime >=3.1,<4.0] (product-catalog.yaml:kernelcare-agent)
+- internal:tuxcare-supply-chain-platform@1.0.0 -> python:tuxcare-vuln-scanner@1.4.2 [requires runtime ^1.4.0] (product-catalog.yaml:tuxcare-vuln-scanner)
+- internal:tuxcare-supply-chain-platform@1.0.0 -> maven:com.cloudlinux.tuxcare/vulnerability-service@2.3.0 [requires runtime >=2.0,<3.0] (product-catalog.yaml:vulnerability-service)
+- internal:tuxcare-supply-chain-platform@1.0.0 -> npm:tuxcare-portal-ui@5.1.0 [requires build ^5.0.0] (product-catalog.yaml:portal-ui)
+- internal:tuxcare-supply-chain-platform@1.0.0 -> go:cloudlinux.com/tuxcare/telemetry-collector@0.8.0 [requires runtime >=0.8.0,<1.0.0] (product-catalog.yaml:telemetry-collector)
+- internal:tuxcare-supply-chain-platform@1.0.0 -> cargo:rpm-diff-engine@0.3.2 [requires build ^0.3.0] (product-catalog.yaml:rpm-diff-engine)
+- rpm:kernelcare-agent@3.1.4 -> rpm:openssl-libs@3.2.2 [requires runtime >=3.0,<4.0] (rpm:kernelcare-agent Requires: openssl-libs)
+- rpm:kernelcare-agent@3.1.4 -> rpm:libdnf@0.73.1 [requires runtime >=0.69,<1.0] (rpm:kernelcare-agent Requires: libdnf)
+- rpm:kernelcare-agent@3.1.4 -> rpm:kernel-headers@5.14.0 [recommends weak >=5.14] (rpm:kernelcare-agent Recommends: kernel-headers)
+- rpm:kernelcare-agent@3.1.4 -> rpm:tuxcare-els-release@9.0 [requires system *] (rpm:kernelcare-agent Requires: tuxcare-els-release)
+- python:tuxcare-vuln-scanner@1.4.2 -> python:requests@2.32.3 [requires runtime ^2.31.0] (pyproject.toml:dependencies.requests)
+- python:tuxcare-vuln-scanner@1.4.2 -> python:grpcio@1.64.1 [requires runtime ^1.62.0] (pyproject.toml:dependencies.grpcio)
+- python:tuxcare-vuln-scanner@1.4.2 -> python:nvidia-ml-py@12.555.43 [requires optional ^12.0.0] (pyproject.toml:extras.gpu)
+- maven:com.cloudlinux.tuxcare/vulnerability-service@2.3.0 -> maven:org.slf4j/slf4j-api@2.0.13 [requires compile >=2.0,<3.0] (pom.xml:dependencies:slf4j-api)
+- maven:com.cloudlinux.tuxcare/vulnerability-service@2.3.0 -> maven:ch.qos.logback/logback-classic@1.5.6 [requires runtime >=1.4,<2.0] (pom.xml:dependencies:logback-classic exclusion commons-logging)
+- maven:com.cloudlinux.tuxcare/vulnerability-service@2.3.0 -> maven:com.fasterxml.jackson.core/jackson-databind@2.17.2 [requires runtime >=2.17,<3.0] (pom.xml:dependencies:jackson-databind)
+- npm:tuxcare-portal-ui@5.1.0 -> npm:react@18.3.1 [requires runtime ^18.2.0] (package-lock.json:dependencies.react)
+- go:cloudlinux.com/tuxcare/telemetry-collector@0.8.0 -> go:golang.org/x/net@0.24.0 [requires runtime >=0.24.0] (go.mod:require golang.org/x/net v0.24.0)
+- go:cloudlinux.com/tuxcare/telemetry-collector@0.8.0 -> go:google.golang.org/protobuf@1.33.0 [requires runtime >=1.33.0] (go.mod:require google.golang.org/protobuf v1.33.0)
+- cargo:rpm-diff-engine@0.3.2 -> cargo:petgraph@0.6.5 [requires build ^0.6.0] (Cargo.lock:petgraph)
+- cargo:rpm-diff-engine@0.3.2 -> cargo:rpm-rs@0.1.2 [requires build ^0.1.0] (Cargo.toml:target.'cfg(unix)'.dependencies.rpm-rs)
+- python:requests@2.32.3 -> python:urllib3@2.2.2 [requires runtime >=1.26,<3.0] (requests METADATA Requires-Dist: urllib3)
+- python:requests@2.32.3 -> python:certifi@2024.7.4 [requires runtime >=2024.2.2] (requests METADATA Requires-Dist: certifi)
+- maven:ch.qos.logback/logback-classic@1.5.6 -> maven:org.slf4j/slf4j-api@2.0.13 [requires runtime >=2.0,<3.0] (manual)
+- npm:react@18.3.1 -> npm:scheduler@0.23.2 [requires runtime ^0.23.0] (package-lock.json:react -> scheduler)
+
+Skipped dependencies
+- python:tuxcare-vuln-scanner@1.4.2 -> python:typing-extensions skipped: context predicate did not match: python_version=<3.11 (pyproject.toml:python_version<'3.11')
+- npm:tuxcare-portal-ui@5.1.0 -> npm:vite skipped: scope development excluded by context (package.json:devDependencies.vite)
+- npm:tuxcare-portal-ui@5.1.0 -> npm:fsevents skipped: context predicate did not match: os=Macos (package.json:optionalDependencies.fsevents)
+- maven:ch.qos.logback/logback-classic@1.5.6 -> maven:commons-logging/commons-logging skipped: excluded by ancestor dependency edge (legacy transitive dependency excluded by root edge)
+
+Conflicts
+- none
+
+Resolver trace
+- trace-000001-a7d970c65870f4d9 selected root -> internal:tuxcare-supply-chain-platform slot=global selected=internal:tuxcare-supply-chain-platform@1.0.0 reason=selected candidate for new slot
+- trace-000002-fd2c85ff776eb8aa selected internal:tuxcare-supply-chain-platform@1.0.0 -> rpm:kernelcare-agent slot=global selected=rpm:kernelcare-agent@3.1.4 reason=selected candidate for new slot
+- trace-000003-4bb57cb0f87c5e56 selected internal:tuxcare-supply-chain-platform@1.0.0 -> python:tuxcare-vuln-scanner slot=global selected=python:tuxcare-vuln-scanner@1.4.2 reason=selected candidate for new slot
+- trace-000004-4b4100fe3c3e10fa selected internal:tuxcare-supply-chain-platform@1.0.0 -> maven:com.cloudlinux.tuxcare/vulnerability-service slot=global selected=maven:com.cloudlinux.tuxcare/vulnerability-service@2.3.0 reason=selected candidate for new slot
+- trace-000005-ae5dcb04675b22d7 selected internal:tuxcare-supply-chain-platform@1.0.0 -> npm:tuxcare-portal-ui slot=internal:tuxcare-supply-chain-platform@1.0.0 selected=npm:tuxcare-portal-ui@5.1.0 reason=selected candidate for new slot
+- trace-000006-1a3739daa864c83e selected internal:tuxcare-supply-chain-platform@1.0.0 -> go:cloudlinux.com/tuxcare/telemetry-collector slot=global selected=go:cloudlinux.com/tuxcare/telemetry-collector@0.8.0 reason=selected candidate for new slot
+- trace-000007-89dfc3a9df85bc02 selected internal:tuxcare-supply-chain-platform@1.0.0 -> cargo:rpm-diff-engine slot=internal:tuxcare-supply-chain-platform@1.0.0 selected=cargo:rpm-diff-engine@0.3.2 reason=selected candidate for new slot
+- trace-000008-1df435558b3ecc8c selected rpm:kernelcare-agent@3.1.4 -> rpm:openssl-libs slot=global selected=rpm:openssl-libs@3.2.2 reason=selected candidate for new slot
+- trace-000009-8a80c7ba6a48156b selected rpm:kernelcare-agent@3.1.4 -> rpm:libdnf slot=global selected=rpm:libdnf@0.73.1 reason=selected candidate for new slot
+- trace-000010-31adfe03b0b4cd59 selected rpm:kernelcare-agent@3.1.4 -> rpm:kernel-headers slot=global selected=rpm:kernel-headers@5.14.0 reason=selected candidate for new slot
+- trace-000011-5ec26d90950dcfe8 selected rpm:kernelcare-agent@3.1.4 -> rpm:tuxcare-els-release slot=global selected=rpm:tuxcare-els-release@9.0 reason=selected candidate for new slot
+- trace-000012-b75010532692a0c6 selected python:tuxcare-vuln-scanner@1.4.2 -> python:requests slot=global selected=python:requests@2.32.3 reason=selected candidate for new slot
+- trace-000013-8be22fd4059f8ff9 selected python:tuxcare-vuln-scanner@1.4.2 -> python:grpcio slot=global selected=python:grpcio@1.64.1 reason=selected candidate for new slot
+- trace-000014-3f8acddd6ad4c2b6 selected python:tuxcare-vuln-scanner@1.4.2 -> python:nvidia-ml-py slot=global selected=python:nvidia-ml-py@12.555.43 reason=selected candidate for new slot
+- trace-000015-3c794b0e11ff1468 skipped python:tuxcare-vuln-scanner@1.4.2 -> python:typing-extensions slot=none selected=none reason=context predicate did not match: python_version=<3.11
+- trace-000016-133f660762b3b8f8 selected maven:com.cloudlinux.tuxcare/vulnerability-service@2.3.0 -> maven:org.slf4j/slf4j-api slot=global selected=maven:org.slf4j/slf4j-api@2.0.13 reason=selected candidate for new slot
+- trace-000017-4325b6aab8a6ef41 selected maven:com.cloudlinux.tuxcare/vulnerability-service@2.3.0 -> maven:ch.qos.logback/logback-classic slot=global selected=maven:ch.qos.logback/logback-classic@1.5.6 reason=selected candidate for new slot
+- trace-000018-d031eb13eb9918af selected maven:com.cloudlinux.tuxcare/vulnerability-service@2.3.0 -> maven:com.fasterxml.jackson.core/jackson-databind slot=global selected=maven:com.fasterxml.jackson.core/jackson-databind@2.17.2 reason=selected candidate for new slot
+- trace-000019-1acb79bbe356176a selected npm:tuxcare-portal-ui@5.1.0 -> npm:react slot=npm:tuxcare-portal-ui@5.1.0 selected=npm:react@18.3.1 reason=selected candidate for new slot
+- trace-000020-ca9ca0b29fc970e7 skipped npm:tuxcare-portal-ui@5.1.0 -> npm:vite slot=none selected=none reason=scope development excluded by context
+- trace-000021-d940434958f3b3ca skipped npm:tuxcare-portal-ui@5.1.0 -> npm:fsevents slot=none selected=none reason=context predicate did not match: os=Macos
+- trace-000022-d25e348b5de53b56 selected go:cloudlinux.com/tuxcare/telemetry-collector@0.8.0 -> go:golang.org/x/net slot=global selected=go:golang.org/x/net@0.24.0 reason=selected candidate for new slot
+- trace-000023-77b43b1623638cd9 selected go:cloudlinux.com/tuxcare/telemetry-collector@0.8.0 -> go:google.golang.org/protobuf slot=global selected=go:google.golang.org/protobuf@1.33.0 reason=selected candidate for new slot
+- trace-000024-9bc5793cac1b508a selected cargo:rpm-diff-engine@0.3.2 -> cargo:petgraph slot=cargo:rpm-diff-engine@0.3.2 selected=cargo:petgraph@0.6.5 reason=selected candidate for new slot
+- trace-000025-6a7959d6bb3c1bdd selected cargo:rpm-diff-engine@0.3.2 -> cargo:rpm-rs slot=cargo:rpm-diff-engine@0.3.2 selected=cargo:rpm-rs@0.1.2 reason=selected candidate for new slot
+- trace-000026-438097dc3921cd2d selected python:requests@2.32.3 -> python:urllib3 slot=global selected=python:urllib3@2.2.2 reason=selected candidate for new slot
+- trace-000027-3f50a02b7d2da887 selected python:requests@2.32.3 -> python:certifi slot=global selected=python:certifi@2024.7.4 reason=selected candidate for new slot
+- trace-000028-f3b6e68cf1332613 selected maven:ch.qos.logback/logback-classic@1.5.6 -> maven:org.slf4j/slf4j-api slot=global selected=maven:org.slf4j/slf4j-api@2.0.13 reason=selected candidate; dependencies already expanded for slot
+- trace-000029-afba32b37dfccbd7 skipped maven:ch.qos.logback/logback-classic@1.5.6 -> maven:commons-logging/commons-logging slot=none selected=none reason=excluded by ancestor dependency edge
+- trace-000030-669be9d2eac0d8e7 selected npm:react@18.3.1 -> npm:scheduler slot=npm:react@18.3.1 selected=npm:scheduler@0.23.2 reason=selected candidate for new slot

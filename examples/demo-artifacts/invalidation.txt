@@ -1,0 +1,5 @@
+Invalidation plan
+- rerun customer-a/tuxcare-demo/ctx-61548048b7e72350
+  reason: package changed: python:urllib3
+  reason: policy changed: default-policy
+  reason: repository channel changed: cloudlinux-baseos

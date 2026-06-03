@@ -30,7 +30,7 @@
 ![File Store](https://img.shields.io/badge/file%20store-durable%20MVP-0a7)
 ![Event Log](https://img.shields.io/badge/event%20log-durable%20MVP-7952b3)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-172%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-173%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Dependency Free](https://img.shields.io/badge/runtime%20deps-0-success)
 
@@ -97,6 +97,8 @@ package:
   remediation report exports,
 - product risk dashboard aggregation for customer-facing portfolio summaries,
 - demo dataset for a TuxCare/CloudLinux style product stack,
+- checked-in demo artifacts for snapshots, SBOMs, reports, risk summaries,
+  durable storage, event logs, and evidence ingestion,
 - tests for version ranges, environment markers, optional features, Maven-style
   exclusions, Go minimal-version selection, cycle handling, parser fixtures,
   impact reports, exports, and platform workflows,
@@ -129,6 +131,19 @@ cargo run -- diff
 
 The demo resolves a synthetic TuxCare stack across RPM, Python, Maven, npm, Go,
 and Cargo packages for a CloudLinux x86_64 production context with GPU support.
+
+## Demo Artifacts
+
+Generated demo outputs are checked in under
+[examples/demo-artifacts](examples/demo-artifacts/README.md). They include:
+
+- stable graph snapshot JSON,
+- CycloneDX, SPDX, and VEX exports,
+- advisory impact and remediation report output,
+- SLA and risk dashboard JSON,
+- adapter coverage, tenant access, invalidation, and graph diff output,
+- durable file-store snapshot/index and replayable event log,
+- normalized evidence output from the CycloneDX fixture.
 
 ## MVP Workflows
 

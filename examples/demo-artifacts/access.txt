@@ -1,0 +1,4 @@
+Tenant access demo
+- allowed: principal analyst@cloudlinux has analyst access to tenant customer-a
+- denied: principal analyst@cloudlinux has no access to tenant customer-b
+- authorized snapshot: snap-e423f74887506d21

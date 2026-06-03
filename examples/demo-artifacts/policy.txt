@@ -1,0 +1,9 @@
+Policy evaluation
+Compliant: false
+- critical deny-package python:urllib3@2.2.2: unsupported package line requires remediation tracking
+- warning require-signed python:certifi@2024.7.4: selected package is not signed
+- warning require-signed python:grpcio@1.64.1: selected package is not signed
+- warning require-signed python:nvidia-ml-py@12.555.43: selected package is not signed
+- warning require-signed python:requests@2.32.3: selected package is not signed
+- warning require-signed python:tuxcare-vuln-scanner@1.4.2: selected package is not signed
+- warning require-signed python:urllib3@2.2.2: selected package is not signed

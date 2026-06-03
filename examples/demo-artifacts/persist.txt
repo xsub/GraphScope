@@ -1,0 +1,7 @@
+Persisted snapshot
+Store: examples/demo-artifacts/durable-store
+Tenant: customer-a
+Product: tuxcare-demo
+Context: ctx-61548048b7e72350
+Snapshot: snap-e423f74887506d21
+Path: examples/demo-artifacts/durable-store/snapshots/customer-a__tuxcare-demo__ctx-61548048b7e72350__snap-e423f74887506d21.json

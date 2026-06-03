@@ -1,0 +1,17 @@
+Adapter coverage
+- cargo via Cargo: formats=[Cargo.lock] capabilities=[lockfile parsing, version range selection, context activation, optional dependencies, stable evidence]
+  production gaps: feature unification, target cfg, and patch sections
+- go via Go modules: formats=[go.mod] capabilities=[lockfile parsing, minimal version selection, context activation, stable evidence]
+  production gaps: replace/exclude/build tags from the full module graph
+- gradle via Gradle: formats=[Gradle build] capabilities=[manifest parsing, version range selection, context activation, stable evidence]
+  production gaps: dependency insight and configuration graph ingestion
+- maven via Maven: formats=[Maven POM] capabilities=[manifest parsing, version range selection, context activation, exclusions, stable evidence]
+  production gaps: effective POM inheritance and dependency management
+- npm via npm: formats=[npm package-lock] capabilities=[lockfile parsing, version range selection, context activation, optional dependencies, parallel version slots, stable evidence]
+  production gaps: peer dependency propagation and overrides
+- python via pip/Poetry: formats=[pip requirements] capabilities=[lockfile parsing, version range selection, context activation, optional dependencies, stable evidence]
+  production gaps: pip/Poetry resolver backtracking and wheel tag selection
+- rpm via DNF/RPM: formats=[RPM inventory] capabilities=[runtime inventory parsing, repository context, context activation, stable evidence]
+  production gaps: libsolv/DNF transaction semantics
+- sbom via CycloneDX: formats=[CycloneDX SBOM] capabilities=[SBOM normalization, stable evidence]
+  production gaps: full CycloneDX dependency graph and vulnerability extensions

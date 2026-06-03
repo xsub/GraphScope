@@ -68,6 +68,38 @@ def test_test_inventory_lists_rust_and_pytest_contract_tests() -> None:
     assert "cli_demo_outputs_dependency_graph_sections" in inventory
 
 
+def test_demo_artifacts_are_checked_in_and_linked() -> None:
+    readme = read_text("README.md")
+    artifact_root = ROOT / "examples" / "demo-artifacts"
+
+    assert "examples/demo-artifacts" in readme
+    for path in [
+        "README.md",
+        "demo.txt",
+        "snapshot.json",
+        "impact.txt",
+        "remediation-report.md",
+        "sbom.cyclonedx.json",
+        "sbom.spdx.json",
+        "vex.json",
+        "policy.txt",
+        "sla.json",
+        "dashboard.json",
+        "invalidation.txt",
+        "adapters.txt",
+        "access.txt",
+        "diff.txt",
+        "cyclonedx-evidence.txt",
+        "persist.txt",
+        "events.txt",
+        "durable-store/index.tsv",
+        "durable-store/events.tsv",
+    ]:
+        assert (artifact_root / path).is_file(), path
+
+    assert any((artifact_root / "durable-store" / "snapshots").glob("*.json"))
+
+
 def test_resolution_algorithm_documents_usability_contract() -> None:
     algorithm = read_text("docs/resolution-algorithm.md")
 

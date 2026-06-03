@@ -1,0 +1,13 @@
+Evidence summary
+Locator: tests/fixtures/sbom/cyclonedx.json
+Records: 3
+Packages: 3
+Dependencies: 0
+Kinds:
+- Sbom: 3
+Confidence:
+- Resolved: 3
+Records
+- ev-39133158955ebd8c package npm:cloudlinux/theme@5.1.0 CycloneDX component: npm:cloudlinux/theme@5.1.0
+- ev-59fcbf75b4600376 package maven:com.fasterxml.jackson.core/jackson-databind@2.17.1 CycloneDX component: maven:com.fasterxml.jackson.core/jackson-databind@2.17.1
+- ev-8d5ac8238b73c286 package python:urllib3@2.2.2 CycloneDX component: python:urllib3@2.2.2
