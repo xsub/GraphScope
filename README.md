@@ -37,7 +37,7 @@ What software do we really depend on, in this exact environment, and what risk
 or maintenance obligation follows from that dependency?
 ```
 
-## Why This Matters
+## Why Is It Useful / What Is It Useful For?
 
 CloudLinux and TuxCare operate in a world where the same application may resolve
 to different dependencies depending on distribution, architecture, Python or JVM
