@@ -84,6 +84,25 @@ Recommended storage pattern:
 - graph database or graph-query layer for interactive investigations;
 - cached closure indexes for high-frequency CVE and advisory impact queries.
 
+The MVP implements this as an in-memory graph store keyed by tenant, product,
+and context hash. It is intentionally small, but it exercises the production
+contract: stored resolved snapshots can be queried for package reachability,
+reverse dependencies, explanations, and advisory impact.
+
+### Graph Query And Impact API
+
+The MVP graph query layer answers:
+
+- dependency paths from root packages to a selected package;
+- reverse dependencies for package impact analysis;
+- skipped reasons for inactive dependencies;
+- package explanations backed by resolver trace events;
+- graph diffs across contexts or resolver versions.
+
+The advisory impact layer matches advisories against selected package versions
+and returns affected findings with dependency paths, reverse dependents,
+severity, status, and remediation text.
+
 ### Policy And Reporting API
 
 Serves product workflows:
@@ -95,6 +114,9 @@ Serves product workflows:
   in upstream scanners?"
 - "Which optional GPU dependencies are active only for x86_64 images?"
 - "Which graph changed after a repository update?"
+
+The MVP exposes these workflows through CLI commands and public Rust APIs:
+`impact`, `report`, `sbom`, `vex`, `explain`, and `diff`.
 
 ## Universal Data Model
 

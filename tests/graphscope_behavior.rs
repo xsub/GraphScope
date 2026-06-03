@@ -117,6 +117,87 @@ fn cli_snapshot_outputs_stable_json_sections() {
 }
 
 #[test]
+fn cli_impact_outputs_advisory_findings() {
+    let output = Command::new(env!("CARGO_BIN_EXE_graphscope"))
+        .arg("impact")
+        .output()
+        .expect("impact command should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Advisory impact"));
+    assert!(stdout.contains("CVE-2026-GS-0001"));
+    assert!(stdout.contains("path:"));
+}
+
+#[test]
+fn cli_report_outputs_remediation_markdown() {
+    let output = Command::new(env!("CARGO_BIN_EXE_graphscope"))
+        .arg("report")
+        .output()
+        .expect("report command should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("# Remediation Report"));
+    assert!(stdout.contains("Evidence paths"));
+}
+
+#[test]
+fn cli_sbom_outputs_cyclonedx_view() {
+    let output = Command::new(env!("CARGO_BIN_EXE_graphscope"))
+        .arg("sbom")
+        .output()
+        .expect("sbom command should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("\"bomFormat\":\"CycloneDX\""));
+    assert!(stdout.contains("tuxcare-supply-chain-platform"));
+}
+
+#[test]
+fn cli_vex_outputs_status_statements() {
+    let output = Command::new(env!("CARGO_BIN_EXE_graphscope"))
+        .arg("vex")
+        .output()
+        .expect("vex command should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("\"format\":\"GraphScope VEX\""));
+    assert!(stdout.contains("\"status\":\"affected\""));
+    assert!(stdout.contains("\"status\":\"not_affected\""));
+}
+
+#[test]
+fn cli_explain_outputs_dependency_paths() {
+    let output = Command::new(env!("CARGO_BIN_EXE_graphscope"))
+        .arg("explain")
+        .output()
+        .expect("explain command should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Package explanation"));
+    assert!(stdout.contains("python:urllib3"));
+    assert!(stdout.contains("Path:"));
+}
+
+#[test]
+fn cli_diff_outputs_context_difference() {
+    let output = Command::new(env!("CARGO_BIN_EXE_graphscope"))
+        .arg("diff")
+        .output()
+        .expect("diff command should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Graph diff"));
+    assert!(stdout.contains("python:nvidia-ml-py"));
+}
+
+#[test]
 fn fixture_pip_lockfile_parses_locked_packages() {
     let input = include_str!("fixtures/pip/requirements.lock");
     let catalog =

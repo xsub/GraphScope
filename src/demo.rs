@@ -1,3 +1,4 @@
+use crate::advisory::{Advisory, AdvisorySeverity};
 use crate::model::{
     Architecture, ArtifactMetadata, BuildProfile, ContextPredicate, DependencyRelation,
     DependencyRequirement, DependencyScope, Ecosystem, PackageId, PackageSource, PackageVersion,
@@ -58,6 +59,37 @@ pub fn demo_repository() -> (
         .with_feature("gpu");
 
     (repo, roots, context)
+}
+
+pub fn demo_advisories() -> Vec<Advisory> {
+    vec![
+        Advisory::new(
+            "CVE-2026-GS-0001",
+            "OpenSSL lifecycle exposure in kernelcare dependency path",
+            PackageId::rpm("openssl-libs"),
+            VersionRequirement::parse("<3.2.3"),
+            AdvisorySeverity::High,
+        )
+        .fixed_by(VersionRequirement::parse(">=3.2.3"))
+        .summary("Selected OpenSSL runtime package is below the target maintenance version."),
+        Advisory::new(
+            "CVE-2026-GS-0002",
+            "urllib3 scanner dependency exposure",
+            PackageId::python("urllib3"),
+            VersionRequirement::parse("<2.2.3"),
+            AdvisorySeverity::Critical,
+        )
+        .fixed_by(VersionRequirement::parse(">=2.2.3"))
+        .summary("urllib3 is reachable through the TuxCare scanner dependency path."),
+        Advisory::new(
+            "CVE-2026-GS-0003",
+            "macOS watcher package not selected on CloudLinux",
+            PackageId::npm(None::<String>, "fsevents"),
+            VersionRequirement::any(),
+            AdvisorySeverity::Medium,
+        )
+        .summary("This advisory is present to demonstrate not-affected VEX output."),
+    ]
 }
 
 fn add_rpm_packages(repo: &mut InMemoryRepository, kernelcare: PackageId) {

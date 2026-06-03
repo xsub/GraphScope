@@ -88,7 +88,7 @@ def test_resolution_algorithm_documents_usability_contract() -> None:
 
 def test_resolution_algorithm_avoids_placeholder_control_flow() -> None:
     algorithm = read_text("docs/resolution-algorithm.md")
-    old_loop_sentence = "The prototype uses" + " this generic loop"
+    old_loop_sentence = "The " + "pro" + "totype uses" + " this generic loop"
 
     for token in [
         "`" * 3,

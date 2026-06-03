@@ -182,7 +182,7 @@ impl ResolverTraceEvent {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ResolveResult {
     pub nodes: BTreeMap<PackageRef, ResolvedNode>,
     pub edges: Vec<ResolvedEdge>,

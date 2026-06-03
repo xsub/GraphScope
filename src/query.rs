@@ -1,0 +1,440 @@
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
+
+use crate::model::{PackageId, PackageRef};
+use crate::resolver::{ResolveResult, ResolvedEdge, ResolverTraceEvent};
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DependencyPath {
+    pub packages: Vec<PackageRef>,
+    pub evidence: Vec<String>,
+}
+
+impl DependencyPath {
+    pub fn display(&self) -> String {
+        self.packages
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(" -> ")
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PackageExplanation {
+    pub package: PackageRef,
+    pub selected_by: BTreeSet<String>,
+    pub paths: Vec<DependencyPath>,
+    pub trace_events: Vec<ResolverTraceEvent>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PackageVersionChange {
+    pub package: PackageId,
+    pub left_versions: Vec<PackageRef>,
+    pub right_versions: Vec<PackageRef>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct EdgeKey {
+    pub from: Option<PackageRef>,
+    pub to: PackageRef,
+    pub relation: String,
+    pub scope: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct GraphDiff {
+    pub added_packages: Vec<PackageRef>,
+    pub removed_packages: Vec<PackageRef>,
+    pub changed_packages: Vec<PackageVersionChange>,
+    pub added_edges: Vec<EdgeKey>,
+    pub removed_edges: Vec<EdgeKey>,
+}
+
+pub struct GraphQuery<'a> {
+    result: &'a ResolveResult,
+}
+
+impl<'a> GraphQuery<'a> {
+    pub fn new(result: &'a ResolveResult) -> Self {
+        Self { result }
+    }
+
+    pub fn roots(&self) -> Vec<PackageRef> {
+        let mut roots = self
+            .result
+            .edges
+            .iter()
+            .filter(|edge| edge.from.is_none())
+            .map(|edge| edge.to.clone())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        roots.sort();
+        roots
+    }
+
+    pub fn direct_dependencies(&self, package: &PackageRef) -> Vec<PackageRef> {
+        let mut dependencies = self
+            .result
+            .edges
+            .iter()
+            .filter(|edge| edge.from.as_ref() == Some(package))
+            .map(|edge| edge.to.clone())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        dependencies.sort();
+        dependencies
+    }
+
+    pub fn dependency_closure(&self) -> Vec<PackageRef> {
+        let mut visited = BTreeSet::new();
+        let mut queue = VecDeque::from(self.roots());
+
+        while let Some(package) = queue.pop_front() {
+            if visited.insert(package.clone()) {
+                for dependency in self.direct_dependencies(&package) {
+                    queue.push_back(dependency);
+                }
+            }
+        }
+
+        visited.into_iter().collect()
+    }
+
+    pub fn reverse_dependencies(&self, package: &PackageId) -> Vec<PackageRef> {
+        let mut visited = BTreeSet::new();
+        let mut queue = self
+            .result
+            .edges
+            .iter()
+            .filter(|edge| edge.to.id == *package)
+            .filter_map(|edge| edge.from.clone())
+            .collect::<VecDeque<_>>();
+
+        while let Some(dependent) = queue.pop_front() {
+            if visited.insert(dependent.clone()) {
+                for edge in self.result.edges.iter().filter(|edge| edge.to == dependent) {
+                    if let Some(parent) = &edge.from {
+                        queue.push_back(parent.clone());
+                    }
+                }
+            }
+        }
+
+        visited.into_iter().collect()
+    }
+
+    pub fn paths_to(&self, package: &PackageId, max_depth: usize) -> Vec<DependencyPath> {
+        let mut paths = Vec::new();
+        let mut queue = self
+            .roots()
+            .into_iter()
+            .map(|root| {
+                let evidence = self
+                    .result
+                    .edges
+                    .iter()
+                    .find(|edge| edge.from.is_none() && edge.to == root)
+                    .map(|edge| vec![edge.requirement.evidence.clone()])
+                    .unwrap_or_default();
+                (root.clone(), vec![root], evidence)
+            })
+            .collect::<VecDeque<_>>();
+
+        while let Some((current, path, evidence)) = queue.pop_front() {
+            if current.id == *package {
+                paths.push(DependencyPath {
+                    packages: path,
+                    evidence,
+                });
+                continue;
+            }
+
+            if path.len() > max_depth {
+                continue;
+            }
+
+            for edge in self
+                .result
+                .edges
+                .iter()
+                .filter(|edge| edge.from.as_ref() == Some(&current))
+            {
+                if path.contains(&edge.to) {
+                    continue;
+                }
+                let mut next_path = path.clone();
+                next_path.push(edge.to.clone());
+                let mut next_evidence = evidence.clone();
+                next_evidence.push(edge.requirement.evidence.clone());
+                queue.push_back((edge.to.clone(), next_path, next_evidence));
+            }
+        }
+
+        paths.sort_by_key(DependencyPath::display);
+        paths
+    }
+
+    pub fn explain_package(&self, package: &PackageId) -> Option<PackageExplanation> {
+        let package_ref = self
+            .result
+            .nodes
+            .keys()
+            .find(|candidate| candidate.id == *package)
+            .cloned()?;
+        let selected_by = self
+            .result
+            .nodes
+            .get(&package_ref)
+            .map(|node| node.selected_by.clone())
+            .unwrap_or_default();
+        let trace_events = self
+            .result
+            .trace
+            .iter()
+            .filter(|event| {
+                event.target == *package || event.selected.as_ref() == Some(&package_ref)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+
+        Some(PackageExplanation {
+            package: package_ref,
+            selected_by,
+            paths: self.paths_to(package, 64),
+            trace_events,
+        })
+    }
+
+    pub fn skipped_reasons(&self, package: &PackageId) -> Vec<String> {
+        self.result
+            .skipped
+            .iter()
+            .filter(|skipped| skipped.target == *package)
+            .map(|skipped| skipped.reason.clone())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect()
+    }
+}
+
+impl GraphDiff {
+    pub fn between(left: &ResolveResult, right: &ResolveResult) -> Self {
+        let left_packages = left.nodes.keys().cloned().collect::<BTreeSet<_>>();
+        let right_packages = right.nodes.keys().cloned().collect::<BTreeSet<_>>();
+        let added_packages = right_packages
+            .difference(&left_packages)
+            .cloned()
+            .collect::<Vec<_>>();
+        let removed_packages = left_packages
+            .difference(&right_packages)
+            .cloned()
+            .collect::<Vec<_>>();
+        let changed_packages = changed_packages(&left_packages, &right_packages);
+
+        let left_edges = edge_keys(&left.edges);
+        let right_edges = edge_keys(&right.edges);
+
+        Self {
+            added_packages,
+            removed_packages,
+            changed_packages,
+            added_edges: right_edges.difference(&left_edges).cloned().collect(),
+            removed_edges: left_edges.difference(&right_edges).cloned().collect(),
+        }
+    }
+
+    pub fn has_changes(&self) -> bool {
+        !self.added_packages.is_empty()
+            || !self.removed_packages.is_empty()
+            || !self.changed_packages.is_empty()
+            || !self.added_edges.is_empty()
+            || !self.removed_edges.is_empty()
+    }
+}
+
+fn edge_keys(edges: &[ResolvedEdge]) -> BTreeSet<EdgeKey> {
+    edges
+        .iter()
+        .map(|edge| EdgeKey {
+            from: edge.from.clone(),
+            to: edge.to.clone(),
+            relation: edge.requirement.relation.to_string(),
+            scope: edge.requirement.scope.to_string(),
+        })
+        .collect()
+}
+
+fn changed_packages(
+    left: &BTreeSet<PackageRef>,
+    right: &BTreeSet<PackageRef>,
+) -> Vec<PackageVersionChange> {
+    let mut by_id = BTreeMap::<PackageId, (Vec<PackageRef>, Vec<PackageRef>)>::new();
+    for package in left {
+        by_id
+            .entry(package.id.clone())
+            .or_default()
+            .0
+            .push(package.clone());
+    }
+    for package in right {
+        by_id
+            .entry(package.id.clone())
+            .or_default()
+            .1
+            .push(package.clone());
+    }
+
+    by_id
+        .into_iter()
+        .filter_map(|(package, (left_versions, right_versions))| {
+            if left_versions.is_empty()
+                || right_versions.is_empty()
+                || left_versions == right_versions
+            {
+                None
+            } else {
+                Some(PackageVersionChange {
+                    package,
+                    left_versions,
+                    right_versions,
+                })
+            }
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::model::{
+        DependencyRequirement, DependencyScope, PackageId, PackageVersion, ResolutionContext,
+        VersionRequirement,
+    };
+    use crate::repository::InMemoryRepository;
+    use crate::resolver::Resolver;
+
+    use super::*;
+
+    #[test]
+    fn query_finds_dependency_paths_and_reverse_dependents() {
+        let app = PackageId::internal("app");
+        let web = PackageId::python("web");
+        let openssl = PackageId::rpm("openssl-libs");
+        let mut repo = InMemoryRepository::new();
+        repo.add(
+            PackageVersion::new(app.clone(), "1.0").with_dependencies(vec![
+                DependencyRequirement::new(web.clone(), VersionRequirement::any())
+                    .evidence("manifest:web"),
+            ]),
+        );
+        repo.add(
+            PackageVersion::new(web.clone(), "2.0").with_dependencies(vec![
+                DependencyRequirement::new(openssl.clone(), VersionRequirement::any())
+                    .scope(DependencyScope::Runtime)
+                    .evidence("metadata:openssl"),
+            ]),
+        );
+        repo.add(PackageVersion::new(openssl.clone(), "3.2.2"));
+
+        let result = Resolver::new(repo).resolve(
+            vec![DependencyRequirement::new(app, VersionRequirement::any())],
+            &ResolutionContext::cloudlinux_production_x86_64(),
+        );
+        let query = GraphQuery::new(&result);
+
+        let paths = query.paths_to(&openssl, 8);
+        assert_eq!(paths.len(), 1);
+        assert!(paths[0].display().contains("python:web@2.0"));
+        assert!(
+            query
+                .reverse_dependencies(&openssl)
+                .iter()
+                .any(|package| package.id == web)
+        );
+    }
+
+    #[test]
+    fn query_explains_selected_package_with_trace_events() {
+        let app = PackageId::internal("app");
+        let dep = PackageId::cargo("petgraph");
+        let mut repo = InMemoryRepository::new();
+        repo.add(
+            PackageVersion::new(app.clone(), "1.0").with_dependencies(vec![
+                DependencyRequirement::new(dep.clone(), VersionRequirement::parse("^0.6")),
+            ]),
+        );
+        repo.add(PackageVersion::new(dep.clone(), "0.6.5"));
+
+        let result = Resolver::new(repo).resolve(
+            vec![DependencyRequirement::new(app, VersionRequirement::any())],
+            &ResolutionContext::cloudlinux_production_x86_64(),
+        );
+        let explanation = GraphQuery::new(&result).explain_package(&dep).unwrap();
+
+        assert_eq!(explanation.package.id, dep);
+        assert!(!explanation.paths.is_empty());
+        assert!(!explanation.trace_events.is_empty());
+    }
+
+    #[test]
+    fn query_returns_skipped_reasons_for_inactive_dependency() {
+        let app = PackageId::internal("app");
+        let test_dep = PackageId::python("pytest");
+        let mut repo = InMemoryRepository::new();
+        repo.add(
+            PackageVersion::new(app.clone(), "1.0").with_dependencies(vec![
+                DependencyRequirement::new(test_dep.clone(), VersionRequirement::any())
+                    .scope(DependencyScope::Test),
+            ]),
+        );
+        repo.add(PackageVersion::new(test_dep.clone(), "8.0"));
+
+        let result = Resolver::new(repo).resolve(
+            vec![DependencyRequirement::new(app, VersionRequirement::any())],
+            &ResolutionContext::cloudlinux_production_x86_64(),
+        );
+        let reasons = GraphQuery::new(&result).skipped_reasons(&test_dep);
+
+        assert_eq!(reasons, vec!["scope test excluded by context".to_string()]);
+    }
+
+    #[test]
+    fn diff_reports_added_removed_and_changed_packages() {
+        let app = PackageId::internal("app");
+        let dep = PackageId::python("requests");
+        let mut left_repo = InMemoryRepository::new();
+        left_repo.add(
+            PackageVersion::new(app.clone(), "1.0").with_dependencies(vec![
+                DependencyRequirement::new(dep.clone(), VersionRequirement::any()),
+            ]),
+        );
+        left_repo.add(PackageVersion::new(dep.clone(), "2.31.0"));
+        let mut right_repo = InMemoryRepository::new();
+        right_repo.add(
+            PackageVersion::new(app.clone(), "1.0").with_dependencies(vec![
+                DependencyRequirement::new(dep.clone(), VersionRequirement::any()),
+            ]),
+        );
+        right_repo.add(PackageVersion::new(dep.clone(), "2.32.3"));
+
+        let context = ResolutionContext::cloudlinux_production_x86_64();
+        let left = Resolver::new(left_repo).resolve(
+            vec![DependencyRequirement::new(
+                app.clone(),
+                VersionRequirement::any(),
+            )],
+            &context,
+        );
+        let right = Resolver::new(right_repo).resolve(
+            vec![DependencyRequirement::new(app, VersionRequirement::any())],
+            &context,
+        );
+        let diff = GraphDiff::between(&left, &right);
+
+        assert!(diff.has_changes());
+        assert_eq!(diff.changed_packages.len(), 1);
+        assert_eq!(diff.changed_packages[0].package, dep);
+    }
+}

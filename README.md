@@ -19,7 +19,7 @@
 ![Go Modules](https://img.shields.io/badge/Go%20modules-modeled-00add8?logo=go)
 ![Cargo](https://img.shields.io/badge/Cargo-modeled-orange?logo=rust)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-100%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-120%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Dependency Free](https://img.shields.io/badge/runtime%20deps-0-success)
 
@@ -54,18 +54,24 @@ them into a lossy SBOM. The goal is to power:
 
 ## Current Repository Contents
 
-This repository contains a dependency-free Rust prototype and a complete
-architecture package:
+This repository contains a dependency-free Rust MVP and a complete architecture
+package:
 
 - universal package, version, scope, condition, and provenance model,
 - context-aware resolver with ecosystem-specific version selection policy,
 - normalized evidence records and lockfile evidence parsers,
 - transitive dependency graph output,
-- stable JSON graph snapshots for golden tests and audit views,
-- conflict and skipped-dependency diagnostics,
+- stable JSON graph snapshots with resolver decision traces,
+- conflict, skipped-dependency, and candidate-selection diagnostics,
+- graph query APIs for dependency paths, reverse dependencies, explanations, and
+  graph diffs,
+- advisory impact reports with evidence-backed dependency paths,
+- in-memory resolver job queue and graph store for customer/product snapshots,
+- CycloneDX-style SBOM, VEX-style status, and remediation report exports,
 - demo dataset for a TuxCare/CloudLinux style product stack,
 - tests for version ranges, environment markers, optional features, Maven-style
-  exclusions, Go minimal-version selection, and cycle handling,
+  exclusions, Go minimal-version selection, cycle handling, impact reports,
+  exports, and platform workflows,
 - business strategy and production architecture documentation.
 
 ## Quick Start
@@ -74,10 +80,27 @@ architecture package:
 cargo test
 cargo run -- demo
 cargo run -- snapshot
+cargo run -- impact
+cargo run -- report
+cargo run -- sbom
+cargo run -- vex
+cargo run -- explain
+cargo run -- diff
 ```
 
 The demo resolves a synthetic TuxCare stack across RPM, Python, Maven, npm, Go,
 and Cargo packages for a CloudLinux x86_64 production context with GPU support.
+
+## MVP Workflows
+
+- `demo`: resolved graph, active edges, skipped dependencies, conflicts, and
+  resolver trace.
+- `impact`: advisory findings with dependency paths and remediation actions.
+- `report`: customer-ready remediation Markdown.
+- `sbom`: CycloneDX-style inventory view generated from the resolved graph.
+- `vex`: VEX-style affected/not-affected statements from graph impact results.
+- `explain`: why a demo dependency is present, including paths and trace events.
+- `diff`: graph comparison across production and production+GPU contexts.
 
 ## Design Principles
 
@@ -109,9 +132,10 @@ and Cargo packages for a CloudLinux x86_64 production context with GPU support.
 - [Roadmap](docs/roadmap.md)
 - [Test Inventory](docs/test-inventory.md)
 
-## Prototype Scope
+## MVP Scope
 
-The Rust code is an executable design prototype: it proves the core model and
-resolution loop while staying small enough to review. Production ingestion
-adapters for `dnf`, `rpm`, `pip`, Poetry, Maven, Gradle, npm, Go modules, Cargo,
-registry APIs, and lockfile parsers are described in the architecture docs.
+The Rust code is an executable MVP: it proves the core model, resolver,
+explainability, impact, platform, and export surfaces while staying small enough
+to review. Production ingestion adapters for `dnf`, `rpm`, `pip`, Poetry, Maven,
+Gradle, npm, Go modules, Cargo, registry APIs, and lockfile parsers are
+described in the architecture docs.

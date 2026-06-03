@@ -1,5 +1,9 @@
 # Test Inventory
 
+- `advisory::tests::advisory_matches_selected_package_version`: Advisory matching detects affected selected package versions.
+- `advisory::tests::impact_report_includes_dependency_paths_and_dependents`: Impact reports include dependency paths and reverse dependents.
+- `advisory::tests::impact_report_orders_highest_severity_first`: Impact reports order highest-severity findings first.
+- `advisory::tests::impact_report_records_unaffected_advisories`: Impact reports preserve advisories that do not affect the graph.
 - `demo::tests::demo_context_enables_gpu_optional_dependency`: Demo context enables optional GPU dependency resolution.
 - `demo::tests::demo_graph_activates_gpu_extra_on_x86_64`: Demo graph includes the GPU extra on x86_64.
 - `demo::tests::demo_graph_honors_maven_exclusion`: Demo graph excludes the Maven `commons-logging` transitive dependency.
@@ -14,6 +18,9 @@
 - `evidence::tests::catalog_queries_records_by_package`: Evidence catalog finds package-related records.
 - `evidence::tests::catalog_returns_locked_packages`: Evidence catalog returns locked package references.
 - `evidence::tests::evidence_record_id_is_stable_for_identical_inputs`: Evidence records receive stable IDs for identical inputs.
+- `export::tests::cyclonedx_view_exports_components_and_dependencies`: CycloneDX view exports graph components and dependencies.
+- `export::tests::remediation_report_includes_paths_and_actions`: Remediation report includes dependency paths and actions.
+- `export::tests::vex_view_exports_affected_and_unaffected_statements`: VEX view exports affected and not-affected statements.
 - `lockfile::tests::parses_cargo_lock_package_blocks`: Cargo.lock parser emits locked crate evidence.
 - `lockfile::tests::parses_go_mod_single_and_block_requirements`: Go module parser emits locked module evidence from single-line and block requirements.
 - `lockfile::tests::parses_pip_pinned_requirements_as_locked_evidence`: pip requirements parser emits locked package evidence.
@@ -48,6 +55,13 @@
 - `model::tests::wildcard_and_empty_requirements_match_any_version`: Wildcard and empty requirements match any version.
 - `model::tests::with_optional_enables_optional_resolution_scope`: Optional context enables optional dependency scope.
 - `model::tests::zero_major_caret_is_conservative`: Zero-major caret ranges stay within the compatible minor range.
+- `platform::tests::resolver_service_creates_graph_record_for_store`: Resolver service creates graph records for the graph store.
+- `platform::tests::store_runs_impact_reports_across_records`: Graph store runs advisory impact across stored records.
+- `platform::tests::work_queue_processes_jobs_fifo`: Resolver work queue processes jobs in FIFO order.
+- `query::tests::diff_reports_added_removed_and_changed_packages`: Graph diff reports added, removed, and changed packages.
+- `query::tests::query_explains_selected_package_with_trace_events`: Graph query explains selected packages with trace events.
+- `query::tests::query_finds_dependency_paths_and_reverse_dependents`: Graph query finds dependency paths and reverse dependents.
+- `query::tests::query_returns_skipped_reasons_for_inactive_dependency`: Graph query returns skipped reasons for inactive dependencies.
 - `repository::tests::added_candidates_are_sorted_by_version`: Repository returns candidates sorted by version.
 - `repository::tests::empty_repository_returns_no_candidates`: Empty repository returns no package candidates.
 - `repository::tests::package_count_counts_all_versions_across_packages`: Repository package count includes all versions across packages.
@@ -84,8 +98,14 @@
 - `snapshot::tests::snapshot_json_escapes_evidence_strings`: Snapshot JSON escapes evidence text safely.
 - `snapshot::tests::snapshot_json_keeps_commas_inside_string_values`: Snapshot JSON preserves commas inside string values.
 - `cli_demo_outputs_dependency_graph_sections`: CLI demo prints graph sections.
+- `cli_diff_outputs_context_difference`: CLI diff prints context-based graph differences.
+- `cli_explain_outputs_dependency_paths`: CLI explain prints dependency paths for a selected package.
 - `cli_help_outputs_usage`: CLI help prints usage.
+- `cli_impact_outputs_advisory_findings`: CLI impact prints advisory findings.
+- `cli_report_outputs_remediation_markdown`: CLI report prints remediation Markdown.
+- `cli_sbom_outputs_cyclonedx_view`: CLI sbom prints a CycloneDX-style view.
 - `cli_snapshot_outputs_stable_json_sections`: CLI snapshot command prints stable JSON graph sections.
+- `cli_vex_outputs_status_statements`: CLI vex prints affected and not-affected status statements.
 - `fixture_cargo_lock_parses_locked_crates`: Cargo fixture parses locked crate evidence.
 - `fixture_go_mod_parses_locked_modules`: Go fixture parses locked module evidence.
 - `fixture_pip_lockfile_parses_locked_packages`: pip fixture parses locked package evidence.

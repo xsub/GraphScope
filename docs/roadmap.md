@@ -13,7 +13,7 @@ Status: implemented in this repository.
 
 ## Phase 1: Resolver Correctness Foundation
 
-Status: in progress.
+Status: MVP implemented; production ecosystem adapters remain follow-up work.
 
 - Build fixture corpus for RPM, pip, Poetry, Maven, Gradle, npm, Go, and Cargo.
   Initial pip, Go, and Cargo fixtures are implemented.
@@ -33,30 +33,52 @@ Status: in progress.
 
 ## Phase 2: CloudLinux/TuxCare Product Slice
 
+Status: MVP implemented for graph impact workflows.
+
 - Model AlmaLinux and CloudLinux repository channels, architectures, module
   streams, ELS channels, KernelCare/live-patch metadata, and errata.
+  MVP context modeling includes distro, architecture, repository channels, ELS,
+  KernelCare, weak dependencies, and optional GPU features.
 - Ingest TuxCare advisory and patch metadata.
+  MVP advisory records and demo advisories are implemented.
 - Build reverse-dependency and impact-analysis APIs.
+  Implemented through `GraphQuery::reverse_dependencies` and `ImpactReport`.
 - Add customer-context graph comparison: CloudLinux versus AlmaLinux, ELS enabled
   versus disabled, x86_64 versus aarch64, FIPS versus standard.
+  MVP graph diff API and demo GPU-context comparison are implemented.
 - Produce internal CVE impact reports with evidence paths.
+  Implemented through `graphscope impact` and `graphscope report`.
 
 ## Phase 3: Platform Scale
 
+Status: MVP implemented with in-memory control-plane primitives.
+
 - Add resolver work queue and stateless resolver worker service.
+  Implemented through `ResolverWorkQueue` and `ResolverService`.
 - Add durable evidence store and immutable graph snapshot store.
+  MVP in-memory graph store is implemented; durable storage remains follow-up.
 - Add graph closure cache and reverse-dependency indexes.
+  MVP query APIs compute closure and reverse dependencies from snapshots.
 - Add incremental invalidation based on repository/advisory/package changes.
+  Follow-up production feature.
 - Add multi-tenant access controls and customer data isolation.
+  MVP graph records are keyed by tenant, product, and context hash.
 - Add API and UI for "why is this dependency present?" investigations.
+  Implemented as `GraphQuery::explain_package` and `graphscope explain`.
 
 ## Phase 4: Customer-Facing Intelligence
 
+Status: MVP implemented for generated views and reports.
+
 - Export CycloneDX, SPDX, and VEX views.
+  CycloneDX-style and VEX-style views are implemented; SPDX remains follow-up.
 - Generate customer remediation reports.
+  Implemented through `RemediationReport` and `graphscope report`.
 - Add policy engine for allowed registries, pinned versions, unsupported EOL
   dependencies, and CloudLinux/TuxCare coverage.
+  Follow-up production feature.
 - Add SLA dashboards for exposure, patch status, and lifecycle risk.
+  Follow-up production feature.
 
 ## Open Decisions
 
