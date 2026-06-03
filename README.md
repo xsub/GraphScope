@@ -113,7 +113,7 @@ and Cargo packages for a CloudLinux x86_64 production context with GPU support.
 
 ## Prototype Scope
 
-The Rust code is a staff-level design executable: it proves the core model and
+The Rust code is an executable design prototype: it proves the core model and
 resolution loop while staying small enough to review. Production ingestion
 adapters for `dnf`, `rpm`, `pip`, Poetry, Maven, Gradle, npm, Go modules, Cargo,
 registry APIs, and lockfile parsers are described in the architecture docs.
