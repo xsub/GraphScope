@@ -21,7 +21,7 @@ pub use evidence::{
     EvidenceCatalog, EvidenceConfidence, EvidenceKind, EvidenceRecord, EvidenceSource,
     EvidenceSubject, EvidenceSummary,
 };
-pub use export::{CycloneDxView, RemediationReport, SlaSummary, SpdxView, VexView};
+pub use export::{CycloneDxView, RemediationReport, RiskDashboard, SlaSummary, SpdxView, VexView};
 pub use ingest::{EvidenceFormat, IngestError, parse_evidence};
 pub use lockfile::{
     parse_cargo_lock_packages, parse_go_mod_requirements, parse_gradle_dependencies,

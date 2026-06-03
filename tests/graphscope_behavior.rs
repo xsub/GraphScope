@@ -217,6 +217,20 @@ fn cli_sla_outputs_risk_summary() {
 }
 
 #[test]
+fn cli_dashboard_outputs_risk_dashboard() {
+    let output = Command::new(env!("CARGO_BIN_EXE_graphscope"))
+        .arg("dashboard")
+        .output()
+        .expect("dashboard command should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("\"format\":\"GraphScope Risk Dashboard\""));
+    assert!(stdout.contains("\"product_count\":1"));
+    assert!(stdout.contains("\"highest_risk_product\":\"customer-a/tuxcare-demo\""));
+}
+
+#[test]
 fn cli_invalidate_outputs_invalidation_plan() {
     let output = Command::new(env!("CARGO_BIN_EXE_graphscope"))
         .arg("invalidate")

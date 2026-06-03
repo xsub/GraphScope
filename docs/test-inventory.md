@@ -24,6 +24,8 @@
 - `evidence::tests::evidence_record_id_is_stable_for_identical_inputs`: Evidence records receive stable IDs for identical inputs.
 - `export::tests::cyclonedx_view_exports_components_and_dependencies`: CycloneDX view exports graph components and dependencies.
 - `export::tests::remediation_report_includes_paths_and_actions`: Remediation report includes dependency paths and actions.
+- `export::tests::risk_dashboard_aggregates_sla_summaries`: Risk dashboard aggregates SLA summaries across products.
+- `export::tests::risk_dashboard_handles_empty_summary_set`: Risk dashboard handles empty product portfolios.
 - `export::tests::sla_summary_combines_impact_and_policy_counts`: SLA summary combines advisory and policy counts.
 - `export::tests::spdx_view_exports_packages_and_relationships`: SPDX view exports packages and dependency relationships.
 - `export::tests::vex_view_exports_affected_and_unaffected_statements`: VEX view exports affected and not-affected statements.
@@ -130,6 +132,7 @@
 - `cli_adapters_outputs_adapter_coverage`: CLI adapters prints ecosystem adapter coverage.
 - `cli_access_outputs_tenant_isolation`: CLI access prints tenant policy and authorized lookup behavior.
 - `cli_demo_outputs_dependency_graph_sections`: CLI demo prints graph sections.
+- `cli_dashboard_outputs_risk_dashboard`: CLI dashboard prints product risk dashboard JSON.
 - `cli_diff_outputs_context_difference`: CLI diff prints context-based graph differences.
 - `cli_evidence_outputs_normalized_summary`: CLI evidence prints normalized evidence summary and records.
 - `cli_events_writes_change_event_log`: CLI events writes a durable change event log.

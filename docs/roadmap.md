@@ -92,8 +92,8 @@ Status: MVP implemented for generated views and reports.
   MVP policy evaluation is implemented for source allowlists, signing
   requirements, denied packages, wildcard requirements, and package coverage.
 - Add SLA dashboards for exposure, patch status, and lifecycle risk.
-  MVP SLA risk summaries are implemented for advisory and policy findings;
-  production dashboards remain follow-up.
+  MVP SLA risk summaries and product risk dashboard aggregates are implemented
+  for advisory and policy findings; production web dashboards remain follow-up.
 
 ## Open Decisions
 

@@ -24,11 +24,12 @@
 ![VEX](https://img.shields.io/badge/VEX-export-6f42c1)
 ![Policy Engine](https://img.shields.io/badge/policy-engine-d73a49)
 ![SLA Summary](https://img.shields.io/badge/SLA-summary-0969da)
+![Risk Dashboard](https://img.shields.io/badge/risk%20dashboard-MVP-0969da)
 ![Invalidation Planner](https://img.shields.io/badge/invalidation-planner-8250df)
 ![File Store](https://img.shields.io/badge/file%20store-durable%20MVP-0a7)
 ![Event Log](https://img.shields.io/badge/event%20log-durable%20MVP-7952b3)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-165%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-168%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Dependency Free](https://img.shields.io/badge/runtime%20deps-0-success)
 
@@ -92,6 +93,7 @@ package:
   wildcard requirements, and coverage,
 - CycloneDX-style SBOM, SPDX-style SBOM, VEX-style status, SLA summary, and
   remediation report exports,
+- product risk dashboard aggregation for customer-facing portfolio summaries,
 - demo dataset for a TuxCare/CloudLinux style product stack,
 - tests for version ranges, environment markers, optional features, Maven-style
   exclusions, Go minimal-version selection, cycle handling, parser fixtures,
@@ -111,6 +113,7 @@ cargo run -- spdx
 cargo run -- vex
 cargo run -- policy
 cargo run -- sla
+cargo run -- dashboard
 cargo run -- invalidate
 cargo run -- evidence tests/fixtures/npm/package-lock.json
 cargo run -- adapters
@@ -136,6 +139,7 @@ and Cargo packages for a CloudLinux x86_64 production context with GPU support.
 - `policy`: customer policy violations for source, signature, version, and
   coverage rules.
 - `sla`: risk and remediation summary combining advisory and policy findings.
+- `dashboard`: product risk dashboard aggregated from SLA summaries.
 - `invalidate`: impacted graph snapshots for package, repository, advisory, and
   policy changes.
 - `evidence <path>`: auto-detect and normalize a manifest, lockfile, or RPM

@@ -1,8 +1,9 @@
 use graphscope::{
     ChangeEvent, CycloneDxView, EvidenceSubject, FileChangeEventLog, FileGraphStore, GraphDiff,
     GraphQuery, GraphSnapshot, ImpactReport, InMemoryGraphStore, RemediationReport, Resolver,
-    ResolverJob, ResolverService, SlaSummary, SpdxView, TenantAccessPolicy, TenantRole, VexView,
-    adapter_profiles, demo_advisories, demo_policy_set, demo_repository, parse_evidence,
+    ResolverJob, ResolverService, RiskDashboard, SlaSummary, SpdxView, TenantAccessPolicy,
+    TenantRole, VexView, adapter_profiles, demo_advisories, demo_policy_set, demo_repository,
+    parse_evidence,
 };
 
 fn main() {
@@ -19,6 +20,7 @@ fn main() {
         "vex" => print_vex(),
         "policy" => print_policy(),
         "sla" => print_sla(),
+        "dashboard" => print_dashboard(),
         "invalidate" => print_invalidation(),
         "evidence" => print_evidence(args.get(2).map(String::as_str)),
         "adapters" => print_adapters(),
@@ -49,6 +51,7 @@ fn print_help() {
     println!("  graphscope vex   print a VEX-style advisory view");
     println!("  graphscope policy   evaluate demo customer policy");
     println!("  graphscope sla   print an SLA-style risk summary");
+    println!("  graphscope dashboard   print a product risk dashboard summary");
     println!("  graphscope invalidate   plan graph invalidation from metadata changes");
     println!("  graphscope evidence <path>   normalize a manifest, lockfile, or inventory");
     println!("  graphscope adapters   show ecosystem adapter coverage");
@@ -258,6 +261,17 @@ fn print_sla() {
     let summary = SlaSummary::from_impact_and_policy("tuxcare-demo", &impact, &policy);
 
     println!("{}", summary.to_json());
+}
+
+fn print_dashboard() {
+    let result = demo_result();
+    let advisories = demo_advisories();
+    let impact = ImpactReport::from_result("tuxcare-demo", &result, &advisories);
+    let policy = demo_policy_set().evaluate(&result);
+    let summary = SlaSummary::from_impact_and_policy("customer-a/tuxcare-demo", &impact, &policy);
+    let dashboard = RiskDashboard::from_summaries(&[summary]);
+
+    println!("{}", dashboard.to_json());
 }
 
 fn print_invalidation() {

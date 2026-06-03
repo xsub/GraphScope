@@ -243,6 +243,97 @@ impl SlaSummary {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RiskDashboard {
+    pub product_count: usize,
+    pub affected_products: usize,
+    pub high_risk_products: usize,
+    pub total_affected_findings: usize,
+    pub total_policy_errors: usize,
+    pub total_policy_warnings: usize,
+    pub total_remediation_actions: usize,
+    pub max_risk_score: u16,
+    pub highest_risk_product: Option<String>,
+}
+
+impl RiskDashboard {
+    pub fn from_summaries(summaries: &[SlaSummary]) -> Self {
+        let product_count = summaries.len();
+        let affected_products = summaries
+            .iter()
+            .filter(|summary| summary.affected_findings > 0 || summary.policy_errors > 0)
+            .count();
+        let high_risk_products = summaries
+            .iter()
+            .filter(|summary| summary.risk_score >= 50)
+            .count();
+        let total_affected_findings = summaries
+            .iter()
+            .map(|summary| summary.affected_findings)
+            .sum();
+        let total_policy_errors = summaries.iter().map(|summary| summary.policy_errors).sum();
+        let total_policy_warnings = summaries
+            .iter()
+            .map(|summary| summary.policy_warnings)
+            .sum();
+        let total_remediation_actions = summaries
+            .iter()
+            .map(|summary| summary.remediation_actions)
+            .sum();
+        let mut ranked = summaries.iter().collect::<Vec<_>>();
+        ranked.sort_by(|left, right| {
+            right
+                .risk_score
+                .cmp(&left.risk_score)
+                .then_with(|| left.product.cmp(&right.product))
+        });
+        let max_risk_score = ranked.first().map_or(0, |summary| summary.risk_score);
+        let highest_risk_product = ranked.first().map(|summary| summary.product.clone());
+
+        Self {
+            product_count,
+            affected_products,
+            high_risk_products,
+            total_affected_findings,
+            total_policy_errors,
+            total_policy_warnings,
+            total_remediation_actions,
+            max_risk_score,
+            highest_risk_product,
+        }
+    }
+
+    pub fn risk_band(&self) -> &'static str {
+        match self.max_risk_score {
+            0..=20 => "low",
+            21..=50 => "medium",
+            51..=80 => "high",
+            _ => "critical",
+        }
+    }
+
+    pub fn to_json(&self) -> String {
+        let highest = self
+            .highest_risk_product
+            .as_ref()
+            .map(|product| format!("\"{}\"", escape_json(product)))
+            .unwrap_or_else(|| "null".to_string());
+        format!(
+            "{{\"format\":\"GraphScope Risk Dashboard\",\"product_count\":{},\"affected_products\":{},\"high_risk_products\":{},\"total_affected_findings\":{},\"total_policy_errors\":{},\"total_policy_warnings\":{},\"total_remediation_actions\":{},\"max_risk_score\":{},\"risk_band\":\"{}\",\"highest_risk_product\":{}}}",
+            self.product_count,
+            self.affected_products,
+            self.high_risk_products,
+            self.total_affected_findings,
+            self.total_policy_errors,
+            self.total_policy_warnings,
+            self.total_remediation_actions,
+            self.max_risk_score,
+            self.risk_band(),
+            highest
+        )
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RemediationReport {
     pub product: String,
     pub markdown: String,
@@ -482,5 +573,54 @@ mod tests {
         assert_eq!(summary.critical_findings, 1);
         assert_eq!(summary.policy_errors, 1);
         assert!(summary.to_json().contains("\"risk_score\""));
+    }
+
+    #[test]
+    fn risk_dashboard_aggregates_sla_summaries() {
+        let dashboard = RiskDashboard::from_summaries(&[
+            SlaSummary {
+                product: "customer-a/portal".to_string(),
+                affected_findings: 2,
+                critical_findings: 1,
+                policy_errors: 1,
+                policy_warnings: 1,
+                remediation_actions: 3,
+                risk_score: 75,
+            },
+            SlaSummary {
+                product: "customer-b/api".to_string(),
+                affected_findings: 0,
+                critical_findings: 0,
+                policy_errors: 0,
+                policy_warnings: 2,
+                remediation_actions: 0,
+                risk_score: 6,
+            },
+        ]);
+
+        assert_eq!(dashboard.product_count, 2);
+        assert_eq!(dashboard.affected_products, 1);
+        assert_eq!(dashboard.high_risk_products, 1);
+        assert_eq!(dashboard.total_remediation_actions, 3);
+        assert_eq!(
+            dashboard.highest_risk_product,
+            Some("customer-a/portal".to_string())
+        );
+        assert_eq!(dashboard.risk_band(), "high");
+        assert!(dashboard.to_json().contains("GraphScope Risk Dashboard"));
+    }
+
+    #[test]
+    fn risk_dashboard_handles_empty_summary_set() {
+        let dashboard = RiskDashboard::from_summaries(&[]);
+
+        assert_eq!(dashboard.product_count, 0);
+        assert_eq!(dashboard.max_risk_score, 0);
+        assert_eq!(dashboard.highest_risk_product, None);
+        assert!(
+            dashboard
+                .to_json()
+                .contains("\"highest_risk_product\":null")
+        );
     }
 }

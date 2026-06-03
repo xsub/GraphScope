@@ -139,8 +139,9 @@ Serves product workflows:
 - "Which snapshots must be recalculated after this policy or advisory change?"
 
 The MVP exposes these workflows through CLI commands and public Rust APIs:
-`impact`, `report`, `sbom`, `spdx`, `vex`, `policy`, `sla`, `invalidate`,
-`evidence`, `adapters`, `access`, `persist`, `events`, `explain`, and `diff`.
+`impact`, `report`, `sbom`, `spdx`, `vex`, `policy`, `sla`, `dashboard`,
+`invalidate`, `evidence`, `adapters`, `access`, `persist`, `events`, `explain`,
+and `diff`.
 
 ## Universal Data Model
 
@@ -236,6 +237,7 @@ be generated as views:
 - VEX for vulnerability status;
 - internal TuxCare impact reports with resolver evidence;
 - SLA risk summaries for executive and customer-success workflows;
+- risk dashboard aggregates for product and customer portfolios;
 - customer-facing remediation plans.
 
 No export format should become the internal source of truth.
