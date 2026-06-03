@@ -22,6 +22,7 @@ pub use model::{
 pub use repository::{InMemoryRepository, PackageRepository};
 pub use resolver::{
     ConflictDiagnostic, ResolveResult, ResolvedEdge, ResolvedNode, Resolver, ResolverOptions,
-    SelectionPolicy, SkippedDependency, VersionMultiplicity,
+    ResolverTraceEvent, ResolverTraceOutcome, SelectionPolicy, SkippedDependency,
+    VersionMultiplicity,
 };
 pub use snapshot::GraphSnapshot;

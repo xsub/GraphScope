@@ -8,14 +8,17 @@ GraphScope is a dependency intelligence platform with three layers:
 
 ## High-Level Flow
 
-```text
-Project, host, image, repo, SBOM, advisory, runtime inventory
-  -> ingestion adapters
-  -> normalized evidence store
-  -> resolver work queue
-  -> ecosystem resolver adapters
-  -> universal dependency graph snapshots
-  -> graph query, policy, reporting, and export APIs
+```mermaid
+flowchart LR
+    Evidence["Project, host, image, repo, SBOM, advisory, runtime inventory"]
+    Ingestion["Ingestion adapters"]
+    Store["Normalized evidence store"]
+    Queue["Resolver work queue"]
+    Adapters["Ecosystem resolver adapters"]
+    Snapshots["Universal dependency graph snapshots"]
+    APIs["Graph query, policy, reporting, and export APIs"]
+
+    Evidence --> Ingestion --> Store --> Queue --> Adapters --> Snapshots --> APIs
 ```
 
 ## Core Services
@@ -56,9 +59,10 @@ Resolver adapters should exist per package-manager family:
 - Go adapter for module graph, MVS, replace/exclude, and build tags.
 - Cargo adapter for features, target dependencies, patches, and lockfiles.
 
-The Rust prototype in this repository provides the shared model and generic
-resolution loop; production adapters should plug ecosystem-native candidate
-enumeration and conflict mediation into the same graph contract.
+The Rust implementation in this repository provides the shared model,
+context-aware resolver, explainable decision trace, and stable graph snapshot
+contract. Production adapters should plug ecosystem-native candidate enumeration
+and conflict mediation into the same graph contract.
 
 ### Graph Store
 

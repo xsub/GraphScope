@@ -86,6 +86,7 @@ fn cli_demo_outputs_dependency_graph_sections() {
     assert!(stdout.contains("Activated edges"));
     assert!(stdout.contains("Skipped dependencies"));
     assert!(stdout.contains("Conflicts"));
+    assert!(stdout.contains("Resolver trace"));
 }
 
 #[test]
@@ -112,6 +113,7 @@ fn cli_snapshot_outputs_stable_json_sections() {
     assert!(stdout.contains("\"context_hash\""));
     assert!(stdout.contains("\"nodes\""));
     assert!(stdout.contains("\"edges\""));
+    assert!(stdout.contains("\"trace\""));
 }
 
 #[test]

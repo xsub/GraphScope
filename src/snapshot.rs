@@ -167,8 +167,41 @@ fn snapshot_body_json(
         .collect::<Vec<_>>()
         .join(",");
 
+    let trace_json = result
+        .trace
+        .iter()
+        .map(|event| {
+            format!(
+                "{{\"id\":\"{}\",\"parent_id\":{},\"requester\":{},\"target\":\"{}\",\"selection_slot\":{},\"requirement\":\"{}\",\"outcome\":\"{}\",\"rule\":\"{}\",\"reason\":\"{}\",\"evidence\":\"{}\",\"active_constraints\":[{}],\"candidates_considered\":[{}],\"candidates_rejected\":[{}],\"selected\":{}}}",
+                escape_json(&event.id),
+                optional_json_string(event.parent_id.as_deref()),
+                event
+                    .requester
+                    .as_ref()
+                    .map(|requester| format!("\"{}\"", escape_json(&requester.to_string())))
+                    .unwrap_or_else(|| "null".to_string()),
+                escape_json(&event.target.to_string()),
+                optional_json_string(event.selection_slot.as_deref()),
+                escape_json(&event.requirement.requirement.to_string()),
+                event.outcome,
+                escape_json(&event.rule),
+                escape_json(&event.reason),
+                escape_json(&event.evidence),
+                json_string_array(event.active_constraints.iter().map(String::as_str)),
+                json_string_array(event.candidates_considered.iter().map(ToString::to_string)),
+                json_string_array(event.candidates_rejected.iter().map(ToString::to_string)),
+                event
+                    .selected
+                    .as_ref()
+                    .map(|selected| format!("\"{}\"", escape_json(&selected.to_string())))
+                    .unwrap_or_else(|| "null".to_string())
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+
     format!(
-        "\"name\":\"{}\",\"resolver_version\":\"{}\",\"context_hash\":\"{}\",\"context\":{},\"nodes\":[{}],\"edges\":[{}],\"skipped\":[{}],\"conflicts\":[{}]",
+        "\"name\":\"{}\",\"resolver_version\":\"{}\",\"context_hash\":\"{}\",\"context\":{},\"nodes\":[{}],\"edges\":[{}],\"skipped\":[{}],\"conflicts\":[{}],\"trace\":[{}]",
         escape_json(name),
         escape_json(resolver_version),
         escape_json(context_hash),
@@ -176,7 +209,8 @@ fn snapshot_body_json(
         node_json,
         edge_json,
         skipped_json,
-        conflict_json
+        conflict_json,
+        trace_json
     )
 }
 
@@ -219,6 +253,12 @@ fn json_string_array<'a>(values: impl IntoIterator<Item = impl AsRef<str> + 'a>)
         .map(|value| format!("\"{}\"", escape_json(value.as_ref())))
         .collect::<Vec<_>>()
         .join(",")
+}
+
+fn optional_json_string(value: Option<&str>) -> String {
+    value
+        .map(|value| format!("\"{}\"", escape_json(value)))
+        .unwrap_or_else(|| "null".to_string())
 }
 
 fn indent_body(body: &str) -> String {
@@ -294,8 +334,38 @@ mod tests {
         assert!(json.contains("\"edges\""));
         assert!(json.contains("\"skipped\""));
         assert!(json.contains("\"conflicts\""));
+        assert!(json.contains("\"trace\""));
         assert!(json.contains("python:missing"));
+        assert!(json.contains("\"outcome\":\"conflict\""));
         assert!(!json.contains(&root.to_string()));
+    }
+
+    #[test]
+    fn snapshot_json_contains_trace_decision_details() {
+        let root = PackageId::internal("app");
+        let dep = PackageId::python("requests");
+        let mut repository = InMemoryRepository::new();
+        repository.add(
+            PackageVersion::new(root.clone(), "1.0").with_dependencies(vec![
+                DependencyRequirement::new(dep.clone(), VersionRequirement::parse("^2.31.0"))
+                    .evidence("pyproject.toml:requests"),
+            ]),
+        );
+        repository.add(PackageVersion::new(dep, "2.32.3"));
+        let context = ResolutionContext::cloudlinux_production_x86_64();
+        let result = Resolver::new(repository).resolve(
+            vec![DependencyRequirement::new(root, VersionRequirement::any())],
+            &context,
+        );
+
+        let json =
+            GraphSnapshot::from_resolve_result("trace", "test", &context, &result).to_json_pretty();
+
+        assert!(json.contains("\"parent_id\""));
+        assert!(json.contains("\"active_constraints\""));
+        assert!(json.contains("\"candidates_considered\""));
+        assert!(json.contains("\"candidates_rejected\""));
+        assert!(json.contains("pyproject.toml:requests"));
     }
 
     #[test]

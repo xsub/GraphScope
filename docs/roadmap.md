@@ -9,7 +9,7 @@ Status: implemented in this repository.
 - Ecosystem selection policy hooks.
 - Demo graph across RPM, Python, Maven, npm, Go, and Cargo.
 - Initial conformance-style unit tests.
-- Staff-level architecture, business strategy, and algorithm documentation.
+- Architecture, business strategy, and algorithm documentation.
 
 ## Phase 1: Resolver Correctness Foundation
 
@@ -27,6 +27,9 @@ Status: in progress.
 - Add Cargo feature unification and target dependency adapter.
 - Emit graph snapshots as stable JSON for golden tests.
   Implemented for resolver output and exposed through `graphscope snapshot`.
+- Emit resolver decision traces for selected, skipped, and conflicting
+  requirements.
+  Implemented in `ResolveResult.trace`, stable snapshot JSON, and the demo CLI.
 
 ## Phase 2: CloudLinux/TuxCare Product Slice
 

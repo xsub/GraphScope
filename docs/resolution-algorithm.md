@@ -41,65 +41,46 @@ decision pipeline that records every active edge, skipped edge, selected
 candidate, conflict, and resolver rule in a way that can be replayed and shown
 to engineers, support teams, customers, and security tooling.
 
-## Adapter-Driven Control Loop
+## Implemented Resolver Control Flow
 
-The shared engine owns scheduling, state, determinism, diagnostics, and graph
-assembly. Ecosystem adapters own package-manager semantics: candidate
-enumeration, version ordering, virtual provides, source priority, conflict
-mediation, feature activation, variant matching, lockfile authority, and
-dependency expansion.
+The executable implementation lives in `src/resolver.rs`. The shared engine owns
+scheduling, state, determinism, diagnostics, graph assembly, and decision trace
+emission. Ecosystem-specific behavior is already represented by resolver options
+for selection policy and version multiplicity, and the architecture keeps room
+for production adapters to replace candidate enumeration and mediation with
+package-manager-native logic.
 
-```text
-work = root requirements with requester = root
-state = {
-    constraints_by_selection_slot,
-    selected_candidate_by_slot,
-    graph_edges,
-    skipped_requirements,
-    conflicts,
-    bounded_trace,
-}
+The current resolver performs these concrete operations:
 
-while work has pending requirements:
-    item = next deterministic work item
-    adapter = adapter_for(item.target.ecosystem)
+1. Builds a deterministic FIFO queue of `PendingRequirement` values from the
+   root requirements.
+2. Carries requester package, parent trace event, dependency depth, parent slot,
+   and inherited exclusions with every queued item.
+3. Records inherited exclusions as `SkippedDependency` records and
+   `ResolverTraceOutcome::Skipped` trace events.
+4. Evaluates `DependencyRequirement::is_active(context)` before candidate
+   selection so scope, optional feature, profile, distro, architecture,
+   repository, and language-runtime predicates are applied before graph edges
+   are emitted.
+5. Builds a `SelectionKey` from package identity plus ecosystem multiplicity:
+   one global package slot for RPM, Python, Maven, Gradle, and Go; parent-local
+   slots for npm and Cargo-style parallel versions.
+6. Accumulates `ConstraintOrigin` records per selection slot, preserving
+   requester, depth, requirement, and evidence.
+7. Enumerates repository candidates, records all candidates considered, records
+   candidates rejected by active constraints, and selects the compatible
+   candidate according to the ecosystem policy.
+8. Emits `ConflictDiagnostic` plus `ResolverTraceOutcome::Conflict` when no
+   candidate satisfies the active slot constraints.
+9. Upserts the selected node, deduplicates the active edge, emits
+   `ResolverTraceOutcome::Selected`, and enqueues the selected candidate's
+   dependencies with the selected event as their trace parent.
+10. Prunes unreachable or stale selected nodes and edges after the queue drains,
+    so replaced selections do not remain in the final graph.
 
-    if item.target is excluded by an inherited rule:
-        skipped += explain("excluded by ancestor edge", item)
-        continue
-
-    activation = adapter.evaluate_activation(item.requirement, context)
-    if activation is inactive:
-        skipped += explain(activation.reason, item)
-        continue
-
-    slot = adapter.selection_slot(item.requirement, item.requester, context)
-    constraints_by_selection_slot[slot] += item.requirement with evidence
-
-    candidates = adapter.enumerate_candidates(item.target, context, evidence_store)
-    selected = adapter.select_candidate(candidates, constraints_by_selection_slot[slot], context)
-
-    if selected is none:
-        conflicts += explain_unsatisfied_constraints(slot, constraints, candidates)
-        continue
-
-    graph_edges += edge(item.requester, selected, item.requirement, adapter.rule_id)
-
-    if selected changed for slot or selected was not expanded in this slot:
-        selected_candidate_by_slot[slot] = selected
-        work += adapter.expand_dependencies(selected, context, inherited_rules)
-
-return finalize_snapshot(
-    prune_unreachable_and_unselected_nodes(state),
-    context_hash,
-    resolver_version,
-    evidence_references,
-)
-```
-
-This structure keeps the core simple while allowing each package-manager family
-to be exact where it matters. npm can keep parallel dependency subtrees, Go can
-use Minimal Version Selection, Maven can mediate nearest definitions, Gradle can
+This keeps the core compact while still allowing each package-manager family to
+be exact where it matters. npm can keep parallel dependency subtrees, Go can use
+Minimal Version Selection, Maven can mediate nearest definitions, Gradle can
 match variants, Cargo can unify features, Poetry can honor source priority, and
 DNF/libsolv can resolve native RPM capability rules against repository state.
 
@@ -141,24 +122,27 @@ CloudLinux, AlmaLinux, TuxCare, or customer-facing workflows:
   flattening RPM, pip, Poetry, Maven, Gradle, npm, Go, and Cargo into a fake
   semver-only resolver.
 
-## Decision Trace Shape
+## Implemented Decision Trace
 
-The trace should be compact enough to store for thousands of applications but
-specific enough to answer support questions. Each trace event should include:
+`ResolveResult.trace` is a first-class output. Every processed requirement emits
+a `ResolverTraceEvent` with:
 
-- stable event ID;
+- deterministic event ID;
 - parent event ID for dependency-path reconstruction;
 - requester package and requested target;
-- selection slot;
+- selection slot when candidate selection was reached;
+- requirement and evidence string;
 - active constraints at the decision point;
-- candidates considered and candidates rejected;
-- adapter rule ID and adapter version;
-- evidence references;
-- result: selected, skipped, conflict, replaced, or already satisfied.
+- candidates considered and candidates rejected by constraints;
+- selected package reference when resolution succeeded;
+- outcome: selected, skipped, or conflict;
+- resolver rule string that records selection policy, version multiplicity, and
+  slot.
 
-Trace events should be bounded and sampled only after preserving the decision
-path for selected, skipped, and conflicting dependencies. A small graph with a
-hard conflict should be more explainable than a large graph with no surprises.
+`GraphSnapshot::from_resolve_result` serializes the trace into the stable JSON
+snapshot emitted by `graphscope snapshot`. The CLI demo also prints a compact
+`Resolver trace` section so an operator can inspect selected, skipped, and
+conflicting decisions without adding a debugger.
 
 ## Selection Policies
 

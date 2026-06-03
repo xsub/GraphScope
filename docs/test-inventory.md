@@ -74,9 +74,13 @@
 - `resolver::tests::selected_by_records_multiple_requesters_for_shared_dependency`: Shared dependency records multiple requesters.
 - `resolver::tests::selected_version_returns_none_for_unresolved_package`: Selected version lookup returns none for unresolved package.
 - `resolver::tests::test_scope_dependency_is_skipped_in_production_context`: Test-scope dependency is skipped in production context.
+- `resolver::tests::trace_records_conflict_constraints_and_rejected_candidates`: Resolver trace records conflict constraints and rejected candidates.
+- `resolver::tests::trace_records_context_skip_with_parent_path`: Resolver trace records skipped dependencies with parent paths.
+- `resolver::tests::trace_records_selected_parent_child_decisions`: Resolver trace records selected parent-child decisions.
 - `resolver::tests::unresolved_transitive_dependency_keeps_resolved_parent_and_reports_conflict`: Missing transitive dependency keeps parent and reports conflict.
 - `snapshot::tests::snapshot_id_is_stable_for_same_graph`: Graph snapshots produce stable IDs for identical graphs.
-- `snapshot::tests::snapshot_json_contains_nodes_edges_skipped_and_conflicts`: Snapshot JSON includes nodes, edges, skipped dependencies, and conflicts.
+- `snapshot::tests::snapshot_json_contains_nodes_edges_skipped_and_conflicts`: Snapshot JSON includes nodes, edges, skipped dependencies, conflicts, and trace.
+- `snapshot::tests::snapshot_json_contains_trace_decision_details`: Snapshot JSON includes resolver trace decision details.
 - `snapshot::tests::snapshot_json_escapes_evidence_strings`: Snapshot JSON escapes evidence text safely.
 - `snapshot::tests::snapshot_json_keeps_commas_inside_string_values`: Snapshot JSON preserves commas inside string values.
 - `cli_demo_outputs_dependency_graph_sections`: CLI demo prints graph sections.
@@ -93,5 +97,6 @@
 - `test_cargo_features_expose_adapter_surfaces`: Pytest verifies Cargo feature flags expose planned adapter surfaces.
 - `test_github_workflows_exist_for_readme_badges`: Pytest verifies each README workflow badge has a backing workflow file.
 - `test_readme_badges_reference_ci_workflows_and_platforms`: Pytest verifies README badges cover CI workflows and platform capabilities.
+- `test_resolution_algorithm_avoids_placeholder_control_flow`: Pytest verifies the resolution algorithm avoids placeholder control-flow docs.
 - `test_resolution_algorithm_documents_usability_contract`: Pytest verifies the resolution algorithm documents the user-facing resolver contract.
 - `test_test_inventory_lists_rust_and_pytest_contract_tests`: Pytest verifies the test inventory lists Rust and pytest contract tests.

@@ -1,5 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::fmt;
 
+use crate::evidence::stable_hash;
 use crate::model::{
     ActiveDecision, DependencyRequirement, Ecosystem, PackageId, PackageRef, PackageVersion,
     ResolutionContext,
@@ -12,10 +14,28 @@ pub enum SelectionPolicy {
     MinimalCompatible,
 }
 
+impl fmt::Display for SelectionPolicy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SelectionPolicy::HighestCompatible => write!(f, "highest-compatible"),
+            SelectionPolicy::MinimalCompatible => write!(f, "minimal-compatible"),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum VersionMultiplicity {
     OnePerPackage,
     ParallelPerParent,
+}
+
+impl fmt::Display for VersionMultiplicity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            VersionMultiplicity::OnePerPackage => write!(f, "one-per-package"),
+            VersionMultiplicity::ParallelPerParent => write!(f, "parallel-per-parent"),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -92,12 +112,83 @@ pub struct SkippedDependency {
     pub reason: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ResolverTraceOutcome {
+    Selected,
+    Skipped,
+    Conflict,
+}
+
+impl fmt::Display for ResolverTraceOutcome {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ResolverTraceOutcome::Selected => write!(f, "selected"),
+            ResolverTraceOutcome::Skipped => write!(f, "skipped"),
+            ResolverTraceOutcome::Conflict => write!(f, "conflict"),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ResolverTraceEvent {
+    pub id: String,
+    pub parent_id: Option<String>,
+    pub requester: Option<PackageRef>,
+    pub target: PackageId,
+    pub requirement: DependencyRequirement,
+    pub selection_slot: Option<String>,
+    pub active_constraints: Vec<String>,
+    pub candidates_considered: Vec<PackageRef>,
+    pub candidates_rejected: Vec<PackageRef>,
+    pub selected: Option<PackageRef>,
+    pub outcome: ResolverTraceOutcome,
+    pub rule: String,
+    pub reason: String,
+    pub evidence: String,
+}
+
+impl ResolverTraceEvent {
+    fn stable_key(&self, sequence: usize) -> String {
+        format!(
+            "{}|{:?}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+            sequence,
+            self.parent_id,
+            self.requester
+                .as_ref()
+                .map(ToString::to_string)
+                .unwrap_or_else(|| "root".to_string()),
+            self.target,
+            self.requirement.requirement,
+            self.selection_slot.as_deref().unwrap_or(""),
+            self.active_constraints.join("\n"),
+            self.candidates_considered
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(","),
+            self.candidates_rejected
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(","),
+            self.selected
+                .as_ref()
+                .map(ToString::to_string)
+                .unwrap_or_default(),
+            self.outcome,
+            self.rule,
+            self.reason
+        )
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct ResolveResult {
     pub nodes: BTreeMap<PackageRef, ResolvedNode>,
     pub edges: Vec<ResolvedEdge>,
     pub conflicts: Vec<ConflictDiagnostic>,
     pub skipped: Vec<SkippedDependency>,
+    pub trace: Vec<ResolverTraceEvent>,
 }
 
 impl ResolveResult {
@@ -130,6 +221,15 @@ struct PendingRequirement {
     slot_parent: String,
     depth: usize,
     inherited_exclusions: BTreeSet<PackageId>,
+    parent_trace_id: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+struct CandidateDecision {
+    selected: Option<PackageVersion>,
+    considered: Vec<PackageRef>,
+    rejected: Vec<PackageRef>,
+    rule: String,
 }
 
 pub struct Resolver<R> {
@@ -164,6 +264,7 @@ where
         let mut selected: BTreeMap<SelectionKey, PackageRef> = BTreeMap::new();
         let mut constraints: BTreeMap<SelectionKey, Vec<ConstraintOrigin>> = BTreeMap::new();
         let mut expanded: BTreeSet<(PackageRef, String)> = BTreeSet::new();
+        let mut trace_sequence = 0;
         let mut queue = roots
             .into_iter()
             .map(|requirement| PendingRequirement {
@@ -172,6 +273,7 @@ where
                 slot_parent: "root".to_string(),
                 depth: 0,
                 inherited_exclusions: BTreeSet::new(),
+                parent_trace_id: None,
             })
             .collect::<VecDeque<_>>();
 
@@ -180,12 +282,33 @@ where
                 .inherited_exclusions
                 .contains(&pending.requirement.target)
             {
+                let reason = "excluded by ancestor dependency edge".to_string();
                 result.skipped.push(SkippedDependency {
-                    requester: pending.requester,
+                    requester: pending.requester.clone(),
                     target: pending.requirement.target.clone(),
-                    requirement: pending.requirement,
-                    reason: "excluded by ancestor dependency edge".to_string(),
+                    requirement: pending.requirement.clone(),
+                    reason: reason.clone(),
                 });
+                push_trace_event(
+                    &mut result,
+                    &mut trace_sequence,
+                    ResolverTraceEvent {
+                        id: String::new(),
+                        parent_id: pending.parent_trace_id,
+                        requester: pending.requester,
+                        target: pending.requirement.target.clone(),
+                        requirement: pending.requirement.clone(),
+                        selection_slot: None,
+                        active_constraints: Vec::new(),
+                        candidates_considered: Vec::new(),
+                        candidates_rejected: Vec::new(),
+                        selected: None,
+                        outcome: ResolverTraceOutcome::Skipped,
+                        rule: "inherited-exclusion".to_string(),
+                        reason,
+                        evidence: pending.requirement.evidence.clone(),
+                    },
+                );
                 continue;
             }
 
@@ -193,11 +316,31 @@ where
                 ActiveDecision::Active => {}
                 ActiveDecision::Skipped(reason) => {
                     result.skipped.push(SkippedDependency {
-                        requester: pending.requester,
+                        requester: pending.requester.clone(),
                         target: pending.requirement.target.clone(),
-                        requirement: pending.requirement,
-                        reason,
+                        requirement: pending.requirement.clone(),
+                        reason: reason.clone(),
                     });
+                    push_trace_event(
+                        &mut result,
+                        &mut trace_sequence,
+                        ResolverTraceEvent {
+                            id: String::new(),
+                            parent_id: pending.parent_trace_id,
+                            requester: pending.requester,
+                            target: pending.requirement.target.clone(),
+                            requirement: pending.requirement.clone(),
+                            selection_slot: None,
+                            active_constraints: Vec::new(),
+                            candidates_considered: Vec::new(),
+                            candidates_rejected: Vec::new(),
+                            selected: None,
+                            outcome: ResolverTraceOutcome::Skipped,
+                            rule: "context-activation".to_string(),
+                            reason,
+                            evidence: pending.requirement.evidence.clone(),
+                        },
+                    );
                     continue;
                 }
             }
@@ -216,22 +359,57 @@ where
             let active_constraints = constraints
                 .get(&selection_key)
                 .expect("constraint was just inserted");
+            let formatted_constraints = active_constraints
+                .iter()
+                .map(format_constraint)
+                .collect::<Vec<_>>();
 
-            let Some(candidate) = self.select_candidate(&selection_key.package, active_constraints)
-            else {
+            let decision = self.select_candidate(&selection_key, active_constraints);
+            let Some(candidate) = decision.selected else {
+                let reason = "no package candidate satisfies all active constraints".to_string();
                 result.conflicts.push(ConflictDiagnostic {
                     package: selection_key.package.clone(),
                     selection_slot: selection_key.slot.clone(),
-                    constraints: active_constraints
-                        .iter()
-                        .map(format_constraint)
-                        .collect::<Vec<_>>(),
-                    reason: "no package candidate satisfies all active constraints".to_string(),
+                    constraints: formatted_constraints.clone(),
+                    reason: reason.clone(),
                 });
+                push_trace_event(
+                    &mut result,
+                    &mut trace_sequence,
+                    ResolverTraceEvent {
+                        id: String::new(),
+                        parent_id: pending.parent_trace_id,
+                        requester: pending.requester,
+                        target: pending.requirement.target.clone(),
+                        requirement: pending.requirement.clone(),
+                        selection_slot: Some(selection_key.slot),
+                        active_constraints: formatted_constraints,
+                        candidates_considered: decision.considered,
+                        candidates_rejected: decision.rejected,
+                        selected: None,
+                        outcome: ResolverTraceOutcome::Conflict,
+                        rule: decision.rule,
+                        reason,
+                        evidence: pending.requirement.evidence.clone(),
+                    },
+                );
                 continue;
             };
 
             let package_ref = candidate.package_ref();
+            let selection_reason = match selected.get(&selection_key) {
+                None => "selected candidate for new slot",
+                Some(previous) if previous != &package_ref => {
+                    "selected candidate replaced previous slot candidate"
+                }
+                Some(_)
+                    if expanded.contains(&(package_ref.clone(), selection_key.slot.clone())) =>
+                {
+                    "selected candidate; dependencies already expanded for slot"
+                }
+                Some(_) => "selected candidate; dependencies pending expansion",
+            }
+            .to_string();
             selected.insert(selection_key.clone(), package_ref.clone());
             self.upsert_node(&mut result, &package_ref, active_constraints);
             self.push_edge(
@@ -241,6 +419,35 @@ where
                 pending.requirement,
             );
 
+            let trace_id = push_trace_event(
+                &mut result,
+                &mut trace_sequence,
+                ResolverTraceEvent {
+                    id: String::new(),
+                    parent_id: pending.parent_trace_id,
+                    requester: pending.requester,
+                    target: selection_key.package.clone(),
+                    requirement: active_constraints
+                        .last()
+                        .expect("active constraint exists")
+                        .requirement
+                        .clone(),
+                    selection_slot: Some(selection_key.slot.clone()),
+                    active_constraints: formatted_constraints,
+                    candidates_considered: decision.considered,
+                    candidates_rejected: decision.rejected,
+                    selected: Some(package_ref.clone()),
+                    outcome: ResolverTraceOutcome::Selected,
+                    rule: decision.rule,
+                    reason: selection_reason,
+                    evidence: active_constraints
+                        .last()
+                        .expect("active constraint exists")
+                        .requirement
+                        .evidence
+                        .clone(),
+                },
+            );
             let expansion_key = (package_ref.clone(), selection_key.slot.clone());
             if expanded.insert(expansion_key) {
                 for dependency in candidate.dependencies {
@@ -252,6 +459,7 @@ where
                         slot_parent: package_ref.to_string(),
                         depth: pending.depth + 1,
                         inherited_exclusions,
+                        parent_trace_id: Some(trace_id.clone()),
                     });
                 }
             }
@@ -275,12 +483,31 @@ where
 
     fn select_candidate(
         &self,
-        package: &PackageId,
+        selection_key: &SelectionKey,
         constraints: &[ConstraintOrigin],
-    ) -> Option<PackageVersion> {
-        let mut candidates = self
+    ) -> CandidateDecision {
+        let package = &selection_key.package;
+        let policy = self.options.selection_policy(&package.ecosystem);
+        let multiplicity = self.options.multiplicity(&package.ecosystem);
+        let candidates = self
             .repository
             .candidates(package)
+            .into_iter()
+            .collect::<Vec<_>>();
+        let considered = candidates
+            .iter()
+            .map(PackageVersion::package_ref)
+            .collect::<Vec<_>>();
+        let rejected = candidates
+            .iter()
+            .filter(|candidate| {
+                !constraints
+                    .iter()
+                    .all(|origin| origin.requirement.requirement.matches(&candidate.version))
+            })
+            .map(PackageVersion::package_ref)
+            .collect::<Vec<_>>();
+        let mut compatible = candidates
             .into_iter()
             .filter(|candidate| {
                 constraints
@@ -289,16 +516,24 @@ where
             })
             .collect::<Vec<_>>();
 
-        match self.options.selection_policy(&package.ecosystem) {
+        match policy {
             SelectionPolicy::HighestCompatible => {
-                candidates.sort_by(|left, right| right.version.cmp(&left.version));
+                compatible.sort_by(|left, right| right.version.cmp(&left.version));
             }
             SelectionPolicy::MinimalCompatible => {
-                candidates.sort_by(|left, right| left.version.cmp(&right.version));
+                compatible.sort_by(|left, right| left.version.cmp(&right.version));
             }
         }
 
-        candidates.into_iter().next()
+        CandidateDecision {
+            selected: compatible.into_iter().next(),
+            considered,
+            rejected,
+            rule: format!(
+                "selection_policy={policy}; version_multiplicity={multiplicity}; slot={}",
+                selection_key.slot
+            ),
+        }
     }
 
     fn upsert_node(
@@ -412,6 +647,22 @@ fn format_constraint(origin: &ConstraintOrigin) -> String {
         origin.requirement.requirement,
         origin.requirement.evidence
     )
+}
+
+fn push_trace_event(
+    result: &mut ResolveResult,
+    sequence: &mut usize,
+    mut event: ResolverTraceEvent,
+) -> String {
+    *sequence += 1;
+    event.id = format!(
+        "trace-{:06}-{:016x}",
+        *sequence,
+        stable_hash(&event.stable_key(*sequence))
+    );
+    let id = event.id.clone();
+    result.trace.push(event);
+    id
 }
 
 #[cfg(test)]
@@ -1038,6 +1289,111 @@ mod tests {
         assert!(result.contains_package(&parent));
         assert_eq!(result.conflicts.len(), 1);
         assert_eq!(result.conflicts[0].package, missing);
+    }
+
+    #[test]
+    fn trace_records_selected_parent_child_decisions() {
+        let root = PackageId::internal("app");
+        let dependency = PackageId::python("requests");
+        let mut repo = InMemoryRepository::new();
+        repo.add(
+            PackageVersion::new(root.clone(), "1.0").with_dependencies(vec![
+                DependencyRequirement::new(dependency.clone(), VersionRequirement::parse("^2.31"))
+                    .evidence("manifest:requests"),
+            ]),
+        );
+        repo.add(PackageVersion::new(dependency.clone(), "2.32.3"));
+
+        let result = Resolver::new(repo).resolve(
+            vec![
+                DependencyRequirement::new(root.clone(), VersionRequirement::any())
+                    .evidence("manifest:root"),
+            ],
+            &ResolutionContext::cloudlinux_production_x86_64(),
+        );
+
+        assert_eq!(result.trace.len(), 2);
+        assert_eq!(result.trace[0].outcome, ResolverTraceOutcome::Selected);
+        assert_eq!(result.trace[0].parent_id, None);
+        assert_eq!(result.trace[0].target, root);
+        assert_eq!(result.trace[1].outcome, ResolverTraceOutcome::Selected);
+        assert_eq!(result.trace[1].parent_id, Some(result.trace[0].id.clone()));
+        assert_eq!(result.trace[1].target, dependency);
+        assert!(result.trace[1].selected.is_some());
+        assert!(
+            result.trace[1]
+                .active_constraints
+                .iter()
+                .any(|constraint| constraint.contains("manifest:requests"))
+        );
+    }
+
+    #[test]
+    fn trace_records_context_skip_with_parent_path() {
+        let root = PackageId::internal("app");
+        let mac_only = PackageId::npm(None::<String>, "fsevents");
+        let mut repo = InMemoryRepository::new();
+        repo.add(
+            PackageVersion::new(root.clone(), "1.0").with_dependencies(vec![
+                DependencyRequirement::new(mac_only.clone(), VersionRequirement::any())
+                    .when(ContextPredicate::OsIs(OperatingSystem::Macos))
+                    .evidence("package.json:optionalDependencies.fsevents"),
+            ]),
+        );
+        repo.add(PackageVersion::new(mac_only.clone(), "2.3.3"));
+
+        let result = Resolver::new(repo).resolve(
+            vec![DependencyRequirement::new(root, VersionRequirement::any())],
+            &ResolutionContext::cloudlinux_production_x86_64(),
+        );
+        let skipped = result
+            .trace
+            .iter()
+            .find(|event| event.target == mac_only)
+            .expect("skip trace event should exist");
+
+        assert_eq!(skipped.outcome, ResolverTraceOutcome::Skipped);
+        assert_eq!(skipped.parent_id, Some(result.trace[0].id.clone()));
+        assert!(skipped.reason.contains("context predicate did not match"));
+        assert_eq!(skipped.candidates_considered.len(), 0);
+    }
+
+    #[test]
+    fn trace_records_conflict_constraints_and_rejected_candidates() {
+        let root = PackageId::internal("app");
+        let dependency = PackageId::python("shared");
+        let mut repo = InMemoryRepository::new();
+        repo.add(
+            PackageVersion::new(root.clone(), "1.0").with_dependencies(vec![
+                DependencyRequirement::new(dependency.clone(), VersionRequirement::parse(">=2.0"))
+                    .evidence("manifest:shared>=2"),
+            ]),
+        );
+        repo.add(PackageVersion::new(dependency.clone(), "1.0"));
+
+        let result = Resolver::new(repo).resolve(
+            vec![DependencyRequirement::new(root, VersionRequirement::any())],
+            &ResolutionContext::cloudlinux_production_x86_64(),
+        );
+        let conflict = result
+            .trace
+            .iter()
+            .find(|event| event.outcome == ResolverTraceOutcome::Conflict)
+            .expect("conflict trace event should exist");
+
+        assert_eq!(conflict.target, dependency);
+        assert_eq!(conflict.candidates_considered.len(), 1);
+        assert_eq!(conflict.candidates_rejected.len(), 1);
+        assert_eq!(
+            conflict.candidates_considered[0],
+            conflict.candidates_rejected[0]
+        );
+        assert!(
+            conflict
+                .active_constraints
+                .iter()
+                .any(|constraint| constraint.contains("manifest:shared>=2"))
+        );
     }
 
     #[test]

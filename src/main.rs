@@ -115,4 +115,24 @@ fn run_demo() {
             }
         }
     }
+
+    println!();
+    println!("Resolver trace");
+    for event in &result.trace {
+        let requester = event
+            .requester
+            .as_ref()
+            .map(ToString::to_string)
+            .unwrap_or_else(|| "root".to_string());
+        let slot = event.selection_slot.as_deref().unwrap_or("none");
+        let selected = event
+            .selected
+            .as_ref()
+            .map(ToString::to_string)
+            .unwrap_or_else(|| "none".to_string());
+        println!(
+            "- {} {} {} -> {} slot={} selected={} reason={}",
+            event.id, event.outcome, requester, event.target, slot, selected, event.reason
+        );
+    }
 }

@@ -73,11 +73,29 @@ def test_resolution_algorithm_documents_usability_contract() -> None:
 
     for token in [
         "Resolution Usability Contract",
-        "Adapter-Driven Control Loop",
+        "Implemented Resolver Control Flow",
         "Usability Guarantees",
-        "Decision Trace Shape",
+        "Implemented Decision Trace",
+        "ResolveResult.trace",
+        "ResolverTraceEvent",
+        "GraphSnapshot::from_resolve_result",
         "Why is this package present?",
         "Every skipped edge is still visible.",
         "Every ecosystem can stay native.",
     ]:
         assert token in algorithm
+
+
+def test_resolution_algorithm_avoids_placeholder_control_flow() -> None:
+    algorithm = read_text("docs/resolution-algorithm.md")
+    old_loop_sentence = "The prototype uses" + " this generic loop"
+
+    for token in [
+        "`" * 3,
+        "work" + " =",
+        "bounded" + "_trace",
+        "while " + "work",
+        "adapter" + "_for(",
+        old_loop_sentence,
+    ]:
+        assert token not in algorithm
