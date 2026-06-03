@@ -116,12 +116,15 @@
 - `snapshot::tests::snapshot_json_contains_trace_decision_details`: Snapshot JSON includes resolver trace decision details.
 - `snapshot::tests::snapshot_json_escapes_evidence_strings`: Snapshot JSON escapes evidence text safely.
 - `snapshot::tests::snapshot_json_keeps_commas_inside_string_values`: Snapshot JSON preserves commas inside string values.
+- `storage::tests::file_change_event_log_appends_and_replays_events`: File change event log appends and replays stored change events.
+- `storage::tests::file_change_event_log_feeds_invalidation_planning`: File change event log feeds replayed events into invalidation planning.
 - `storage::tests::file_graph_store_lists_and_finds_context_records`: File graph store lists stored snapshots and finds records by context.
 - `storage::tests::file_graph_store_persists_and_reads_snapshot_json`: File graph store persists and reads immutable snapshot JSON.
 - `storage::tests::file_graph_store_repeated_persist_is_idempotent`: File graph store repeated persistence does not duplicate index records.
 - `cli_demo_outputs_dependency_graph_sections`: CLI demo prints graph sections.
 - `cli_diff_outputs_context_difference`: CLI diff prints context-based graph differences.
 - `cli_evidence_outputs_normalized_summary`: CLI evidence prints normalized evidence summary and records.
+- `cli_events_writes_change_event_log`: CLI events writes a durable change event log.
 - `cli_explain_outputs_dependency_paths`: CLI explain prints dependency paths for a selected package.
 - `cli_help_outputs_usage`: CLI help prints usage.
 - `cli_invalidate_outputs_invalidation_plan`: CLI invalidate prints impacted graph snapshots and invalidation reasons.

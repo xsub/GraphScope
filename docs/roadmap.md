@@ -67,7 +67,8 @@ Status: MVP implemented with in-memory control-plane primitives.
   MVP query APIs compute closure and reverse dependencies from snapshots.
 - Add incremental invalidation based on repository/advisory/package changes.
   MVP invalidation planning is implemented for package, advisory, repository,
-  and policy changes; durable event streams remain follow-up.
+  and policy changes. A durable file event log is implemented for replayable
+  invalidation inputs; production event buses remain follow-up.
 - Add multi-tenant access controls and customer data isolation.
   MVP graph records are keyed by tenant, product, and context hash.
 - Add API and UI for "why is this dependency present?" investigations.

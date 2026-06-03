@@ -96,9 +96,12 @@ reverse dependencies, explanations, advisory impact, and invalidation planning.
 
 The durable MVP store persists immutable snapshot JSON files plus a compact
 snapshot index through `FileGraphStore` and the `graphscope persist <dir>`
-workflow. Production SQLite, RocksDB, or columnar adapters should preserve the
-same immutable snapshot contract while adding concurrency, compaction, and
-analytics indexes.
+workflow. It also persists replayable invalidation inputs through
+`FileChangeEventLog` and the `graphscope events <dir>` workflow so package,
+repository, advisory, and policy changes can survive process restarts before
+being planned. Production SQLite, RocksDB, event-bus, or columnar adapters
+should preserve the same immutable snapshot and ordered event contracts while
+adding concurrency, compaction, and analytics indexes.
 
 ### Graph Query And Impact API
 
@@ -134,7 +137,7 @@ Serves product workflows:
 
 The MVP exposes these workflows through CLI commands and public Rust APIs:
 `impact`, `report`, `sbom`, `spdx`, `vex`, `policy`, `sla`, `invalidate`,
-`evidence`, `persist`, `explain`, and `diff`.
+`evidence`, `persist`, `events`, `explain`, and `diff`.
 
 ## Universal Data Model
 

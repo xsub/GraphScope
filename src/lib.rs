@@ -46,4 +46,4 @@ pub use resolver::{
     VersionMultiplicity,
 };
 pub use snapshot::GraphSnapshot;
-pub use storage::{FileGraphStore, StoredSnapshotRecord};
+pub use storage::{FileChangeEventLog, FileGraphStore, StoredChangeEvent, StoredSnapshotRecord};

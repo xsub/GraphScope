@@ -1,7 +1,7 @@
 use graphscope::{
-    ChangeEvent, CycloneDxView, EvidenceSubject, FileGraphStore, GraphDiff, GraphQuery,
-    GraphSnapshot, ImpactReport, InMemoryGraphStore, RemediationReport, Resolver, ResolverJob,
-    ResolverService, SlaSummary, SpdxView, VexView, demo_advisories, demo_policy_set,
+    ChangeEvent, CycloneDxView, EvidenceSubject, FileChangeEventLog, FileGraphStore, GraphDiff,
+    GraphQuery, GraphSnapshot, ImpactReport, InMemoryGraphStore, RemediationReport, Resolver,
+    ResolverJob, ResolverService, SlaSummary, SpdxView, VexView, demo_advisories, demo_policy_set,
     demo_repository, parse_evidence,
 };
 
@@ -22,6 +22,7 @@ fn main() {
         "invalidate" => print_invalidation(),
         "evidence" => print_evidence(args.get(2).map(String::as_str)),
         "persist" => persist_demo(args.get(2).map(String::as_str)),
+        "events" => persist_demo_events(args.get(2).map(String::as_str)),
         "explain" => print_explain(),
         "diff" => print_diff(),
         "help" | "--help" | "-h" => print_help(),
@@ -49,6 +50,7 @@ fn print_help() {
     println!("  graphscope invalidate   plan graph invalidation from metadata changes");
     println!("  graphscope evidence <path>   normalize a manifest, lockfile, or inventory");
     println!("  graphscope persist <dir>   persist the demo graph snapshot to a file store");
+    println!("  graphscope events <dir>   append demo invalidation events to a file log");
     println!("  graphscope explain   explain why urllib3 is present in the demo graph");
     println!("  graphscope diff   compare demo graph with and without optional GPU context");
     println!("  graphscope help   show this help");
@@ -380,6 +382,59 @@ fn persist_demo(root: Option<&str>) {
     println!("Context: {}", stored.context_hash);
     println!("Snapshot: {}", stored.snapshot_id);
     println!("Path: {}", stored.snapshot_path.display());
+}
+
+fn persist_demo_events(root: Option<&str>) {
+    let Some(root) = root else {
+        eprintln!("missing event log directory");
+        print_help();
+        std::process::exit(2);
+    };
+    let log_path = std::path::Path::new(root).join("events.tsv");
+    let log = FileChangeEventLog::new(&log_path).unwrap_or_else(|error| {
+        eprintln!(
+            "failed to initialize event log {}: {error}",
+            log_path.display()
+        );
+        std::process::exit(2);
+    });
+    let stored = log
+        .append_all(&[
+            ChangeEvent::PackageChanged(graphscope::PackageId::python("urllib3")),
+            ChangeEvent::RepositoryChanged("cloudlinux-baseos".to_string()),
+            ChangeEvent::PolicyChanged("default-policy".to_string()),
+        ])
+        .unwrap_or_else(|error| {
+            eprintln!("failed to append change events: {error}");
+            std::process::exit(2);
+        });
+
+    println!("Persisted change events");
+    println!("Log: {}", log.path().display());
+    println!("Events: {}", stored.len());
+    for event in stored {
+        println!(
+            "- #{} {}",
+            event.sequence,
+            change_event_summary(&event.event)
+        );
+    }
+}
+
+fn change_event_summary(event: &ChangeEvent) -> String {
+    match event {
+        ChangeEvent::PackageChanged(package) => format!("package changed: {package}"),
+        ChangeEvent::AdvisoryChanged {
+            advisory_id,
+            package,
+        } => {
+            format!("advisory changed: {advisory_id} for {package}")
+        }
+        ChangeEvent::RepositoryChanged(channel) => {
+            format!("repository channel changed: {channel}")
+        }
+        ChangeEvent::PolicyChanged(policy_id) => format!("policy changed: {policy_id}"),
+    }
 }
 
 fn print_explain() {

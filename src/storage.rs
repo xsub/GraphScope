@@ -1,7 +1,10 @@
 use std::fs;
 use std::io;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use crate::model::{Ecosystem, PackageId};
+use crate::platform::ChangeEvent;
 use crate::platform::GraphRecord;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -161,6 +164,81 @@ impl FileGraphStore {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StoredChangeEvent {
+    pub sequence: u64,
+    pub event: ChangeEvent,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FileChangeEventLog {
+    path: PathBuf,
+}
+
+impl FileChangeEventLog {
+    pub fn new(path: impl Into<PathBuf>) -> io::Result<Self> {
+        let path = path.into();
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        if !path.exists() {
+            fs::File::create(&path)?;
+        }
+        Ok(Self { path })
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub fn append(&self, event: &ChangeEvent) -> io::Result<StoredChangeEvent> {
+        let sequence = self.next_sequence()?;
+        let stored = StoredChangeEvent {
+            sequence,
+            event: event.clone(),
+        };
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.path)?;
+        writeln!(file, "{}", format_event_line(&stored))?;
+        Ok(stored)
+    }
+
+    pub fn append_all(&self, events: &[ChangeEvent]) -> io::Result<Vec<StoredChangeEvent>> {
+        events.iter().map(|event| self.append(event)).collect()
+    }
+
+    pub fn list(&self) -> io::Result<Vec<StoredChangeEvent>> {
+        if !self.path.exists() {
+            return Ok(Vec::new());
+        }
+        fs::read_to_string(&self.path)?
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .map(parse_event_line)
+            .collect()
+    }
+
+    pub fn events(&self) -> io::Result<Vec<ChangeEvent>> {
+        Ok(self
+            .list()?
+            .into_iter()
+            .map(|stored| stored.event)
+            .collect())
+    }
+
+    fn next_sequence(&self) -> io::Result<u64> {
+        Ok(self
+            .list()?
+            .into_iter()
+            .map(|stored| stored.sequence)
+            .max()
+            .unwrap_or(0)
+            + 1)
+    }
+}
+
 fn format_index_line(record: &StoredSnapshotRecord) -> String {
     [
         encode_field(&record.tenant),
@@ -190,6 +268,104 @@ fn parse_index_line(root: &Path, line: &str) -> io::Result<StoredSnapshotRecord>
         resolver_version: decode_field(fields[4])?,
         snapshot_path: absolute_path(root, decode_field(fields[5])?),
     })
+}
+
+fn format_event_line(stored: &StoredChangeEvent) -> String {
+    let mut fields = vec![stored.sequence.to_string()];
+    match &stored.event {
+        ChangeEvent::PackageChanged(package) => {
+            fields.push("package".to_string());
+            fields.push(encode_field(&package.to_string()));
+        }
+        ChangeEvent::AdvisoryChanged {
+            advisory_id,
+            package,
+        } => {
+            fields.push("advisory".to_string());
+            fields.push(encode_field(advisory_id));
+            fields.push(encode_field(&package.to_string()));
+        }
+        ChangeEvent::RepositoryChanged(channel) => {
+            fields.push("repository".to_string());
+            fields.push(encode_field(channel));
+        }
+        ChangeEvent::PolicyChanged(policy_id) => {
+            fields.push("policy".to_string());
+            fields.push(encode_field(policy_id));
+        }
+    }
+    fields.join("\t")
+}
+
+fn parse_event_line(line: &str) -> io::Result<StoredChangeEvent> {
+    let fields = line.split('\t').collect::<Vec<_>>();
+    if fields.len() < 3 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "change event line must contain sequence, kind, and payload",
+        ));
+    }
+    let sequence = fields[0].parse::<u64>().map_err(|error| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("invalid change event sequence: {error}"),
+        )
+    })?;
+    let event = match fields[1] {
+        "package" if fields.len() == 3 => {
+            ChangeEvent::PackageChanged(parse_package_id(&decode_field(fields[2])?)?)
+        }
+        "advisory" if fields.len() == 4 => ChangeEvent::AdvisoryChanged {
+            advisory_id: decode_field(fields[2])?,
+            package: parse_package_id(&decode_field(fields[3])?)?,
+        },
+        "repository" if fields.len() == 3 => {
+            ChangeEvent::RepositoryChanged(decode_field(fields[2])?)
+        }
+        "policy" if fields.len() == 3 => ChangeEvent::PolicyChanged(decode_field(fields[2])?),
+        _ => {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "unsupported change event line",
+            ));
+        }
+    };
+    Ok(StoredChangeEvent { sequence, event })
+}
+
+fn parse_package_id(value: &str) -> io::Result<PackageId> {
+    let Some((ecosystem, rest)) = value.split_once(':') else {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "package id is missing ecosystem prefix",
+        ));
+    };
+    let ecosystem = parse_ecosystem(ecosystem);
+    let (namespace, name) = match &ecosystem {
+        Ecosystem::Maven | Ecosystem::Gradle | Ecosystem::Npm => rest
+            .split_once('/')
+            .map_or((None, rest.to_string()), |(namespace, name)| {
+                (Some(namespace.to_string()), name.to_string())
+            }),
+        _ => (None, rest.to_string()),
+    };
+    Ok(PackageId::new(ecosystem, namespace, name))
+}
+
+fn parse_ecosystem(value: &str) -> Ecosystem {
+    match value {
+        "internal" => Ecosystem::Internal,
+        "rpm" => Ecosystem::Rpm,
+        "python" => Ecosystem::Python,
+        "maven" => Ecosystem::Maven,
+        "gradle" => Ecosystem::Gradle,
+        "npm" => Ecosystem::Npm,
+        "go" => Ecosystem::Go,
+        "cargo" => Ecosystem::Cargo,
+        "nuget" => Ecosystem::NuGet,
+        "rubygems" => Ecosystem::RubyGems,
+        other => Ecosystem::Other(other.to_string()),
+    }
 }
 
 fn absolute_path(root: &Path, path: String) -> PathBuf {
@@ -258,7 +434,7 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use crate::demo::demo_repository;
-    use crate::platform::{ResolverJob, ResolverService};
+    use crate::platform::{InMemoryGraphStore, ResolverJob, ResolverService};
 
     use super::*;
 
@@ -300,6 +476,50 @@ mod tests {
         assert_eq!(first.snapshot_id, second.snapshot_id);
         assert_eq!(store.list().unwrap().len(), 1);
         assert!(first.snapshot_path.exists());
+    }
+
+    #[test]
+    fn file_change_event_log_appends_and_replays_events() {
+        let log = FileChangeEventLog::new(test_store_dir("events").join("events.tsv")).unwrap();
+        log.append_all(&[
+            ChangeEvent::PackageChanged(PackageId::python("urllib3")),
+            ChangeEvent::RepositoryChanged("cloudlinux-baseos".to_string()),
+            ChangeEvent::PolicyChanged("default-policy".to_string()),
+        ])
+        .unwrap();
+
+        let stored = log.list().unwrap();
+        let events = log.events().unwrap();
+
+        assert_eq!(stored.len(), 3);
+        assert_eq!(stored[0].sequence, 1);
+        assert_eq!(
+            events[0],
+            ChangeEvent::PackageChanged(PackageId::python("urllib3"))
+        );
+        assert_eq!(
+            events[2],
+            ChangeEvent::PolicyChanged("default-policy".to_string())
+        );
+    }
+
+    #[test]
+    fn file_change_event_log_feeds_invalidation_planning() {
+        let log =
+            FileChangeEventLog::new(test_store_dir("plan-events").join("events.tsv")).unwrap();
+        log.append_all(&[
+            ChangeEvent::PackageChanged(PackageId::python("urllib3")),
+            ChangeEvent::RepositoryChanged("cloudlinux-baseos".to_string()),
+        ])
+        .unwrap();
+        let mut graph_store = InMemoryGraphStore::new();
+        graph_store.upsert(demo_record("customer-a", "portal"));
+
+        let events = log.events().unwrap();
+        let plan = graph_store.plan_invalidation(&events);
+
+        assert_eq!(plan.impacted_records.len(), 1);
+        assert_eq!(plan.reasons[&plan.impacted_records[0]].len(), 2);
     }
 
     fn demo_record(tenant: &str, product: &str) -> GraphRecord {

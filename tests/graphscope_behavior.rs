@@ -281,6 +281,29 @@ fn cli_persist_writes_file_store_snapshot() {
 }
 
 #[test]
+fn cli_events_writes_change_event_log() {
+    let store_dir = std::env::temp_dir().join(format!(
+        "graphscope-cli-events-{}",
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let output = Command::new(env!("CARGO_BIN_EXE_graphscope"))
+        .arg("events")
+        .arg(&store_dir)
+        .output()
+        .expect("events command should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Persisted change events"));
+    assert!(stdout.contains("package changed: python:urllib3"));
+    assert!(stdout.contains("policy changed: default-policy"));
+    assert!(store_dir.join("events.tsv").is_file());
+}
+
+#[test]
 fn cli_explain_outputs_dependency_paths() {
     let output = Command::new(env!("CARGO_BIN_EXE_graphscope"))
         .arg("explain")

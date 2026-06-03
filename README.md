@@ -25,8 +25,9 @@
 ![SLA Summary](https://img.shields.io/badge/SLA-summary-0969da)
 ![Invalidation Planner](https://img.shields.io/badge/invalidation-planner-8250df)
 ![File Store](https://img.shields.io/badge/file%20store-durable%20MVP-0a7)
+![Event Log](https://img.shields.io/badge/event%20log-durable%20MVP-7952b3)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-154%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-157%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Dependency Free](https://img.shields.io/badge/runtime%20deps-0-success)
 
@@ -80,6 +81,7 @@ package:
 - in-memory resolver job queue and graph store for customer/product snapshots,
 - dependency-free durable file store for immutable graph snapshot JSON and
   snapshot indexes,
+- dependency-free change-event log for replayable invalidation inputs,
 - incremental invalidation planning for package, repository, advisory, and
   policy changes,
 - customer policy evaluation for allowed sources, signing, denied packages,
@@ -108,6 +110,7 @@ cargo run -- sla
 cargo run -- invalidate
 cargo run -- evidence tests/fixtures/npm/package-lock.json
 cargo run -- persist /tmp/graphscope-store
+cargo run -- events /tmp/graphscope-store
 cargo run -- explain
 cargo run -- diff
 ```
@@ -133,6 +136,7 @@ and Cargo packages for a CloudLinux x86_64 production context with GPU support.
   inventory into evidence records.
 - `persist <dir>`: resolve and persist the demo graph snapshot into a durable
   file-backed store.
+- `events <dir>`: persist sample invalidation events into a replayable file log.
 - `explain`: why a demo dependency is present, including paths and trace events.
 - `diff`: graph comparison across production and production+GPU contexts.
 
