@@ -3,8 +3,8 @@ use std::fmt;
 
 use crate::evidence::stable_hash;
 use crate::model::{
-    ActiveDecision, DependencyRequirement, Ecosystem, PackageId, PackageRef, PackageVersion,
-    ResolutionContext,
+    ActiveDecision, ArtifactMetadata, DependencyRequirement, Ecosystem, PackageId, PackageRef,
+    PackageVersion, ResolutionContext,
 };
 use crate::repository::PackageRepository;
 
@@ -87,6 +87,7 @@ pub struct ResolvedNode {
     pub package: PackageRef,
     pub depth: usize,
     pub selected_by: BTreeSet<String>,
+    pub metadata: ArtifactMetadata,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -411,7 +412,12 @@ where
             }
             .to_string();
             selected.insert(selection_key.clone(), package_ref.clone());
-            self.upsert_node(&mut result, &package_ref, active_constraints);
+            self.upsert_node(
+                &mut result,
+                &package_ref,
+                &candidate.metadata,
+                active_constraints,
+            );
             self.push_edge(
                 &mut result,
                 pending.requester.clone(),
@@ -540,6 +546,7 @@ where
         &self,
         result: &mut ResolveResult,
         package: &PackageRef,
+        metadata: &ArtifactMetadata,
         constraints: &[ConstraintOrigin],
     ) {
         let depth = constraints
@@ -566,6 +573,7 @@ where
                 package: package.clone(),
                 depth,
                 selected_by,
+                metadata: metadata.clone(),
             });
     }
 

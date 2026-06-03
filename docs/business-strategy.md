@@ -49,11 +49,17 @@ GraphScope should support the following workflows:
   architectures, and package channels;
 - find all applications impacted by an advisory, package removal, ABI change, or
   end-of-life event;
+- plan resolver re-runs after package, repository, advisory, or customer-policy
+  changes;
 - distinguish runtime exposure from build, test, development, optional, weak,
   peer, and provided dependencies;
+- evaluate customer policy such as allowed sources, required signatures, denied
+  components, and CloudLinux/TuxCare coverage;
 - preserve package-manager-specific evidence for audit and customer trust;
 - export CycloneDX/SPDX/VEX-compatible views without losing GraphScope-native
-  context.
+  context;
+- summarize advisory and policy findings into SLA-style risk and remediation
+  metrics.
 
 ## Success Metrics
 
@@ -64,6 +70,8 @@ GraphScope should support the following workflows:
 - Graph freshness by repository, customer fleet, and advisory source.
 - Resolver cost per project and cache hit ratio.
 - Time to produce a customer-ready remediation report.
+- Number of graph snapshots invalidated per metadata change versus full
+  re-resolution.
 
 ## Operating Model
 

@@ -18,8 +18,14 @@
 ![npm](https://img.shields.io/badge/npm-modeled-cb3837?logo=npm)
 ![Go Modules](https://img.shields.io/badge/Go%20modules-modeled-00add8?logo=go)
 ![Cargo](https://img.shields.io/badge/Cargo-modeled-orange?logo=rust)
+![CycloneDX](https://img.shields.io/badge/CycloneDX-1.6-0b7)
+![SPDX](https://img.shields.io/badge/SPDX-2.3-4398d1)
+![VEX](https://img.shields.io/badge/VEX-export-6f42c1)
+![Policy Engine](https://img.shields.io/badge/policy-engine-d73a49)
+![SLA Summary](https://img.shields.io/badge/SLA-summary-0969da)
+![Invalidation Planner](https://img.shields.io/badge/invalidation-planner-8250df)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-120%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-133%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Dependency Free](https://img.shields.io/badge/runtime%20deps-0-success)
 
@@ -67,7 +73,12 @@ package:
   graph diffs,
 - advisory impact reports with evidence-backed dependency paths,
 - in-memory resolver job queue and graph store for customer/product snapshots,
-- CycloneDX-style SBOM, VEX-style status, and remediation report exports,
+- incremental invalidation planning for package, repository, advisory, and
+  policy changes,
+- customer policy evaluation for allowed sources, signing, denied packages,
+  wildcard requirements, and coverage,
+- CycloneDX-style SBOM, SPDX-style SBOM, VEX-style status, SLA summary, and
+  remediation report exports,
 - demo dataset for a TuxCare/CloudLinux style product stack,
 - tests for version ranges, environment markers, optional features, Maven-style
   exclusions, Go minimal-version selection, cycle handling, impact reports,
@@ -83,7 +94,11 @@ cargo run -- snapshot
 cargo run -- impact
 cargo run -- report
 cargo run -- sbom
+cargo run -- spdx
 cargo run -- vex
+cargo run -- policy
+cargo run -- sla
+cargo run -- invalidate
 cargo run -- explain
 cargo run -- diff
 ```
@@ -98,7 +113,13 @@ and Cargo packages for a CloudLinux x86_64 production context with GPU support.
 - `impact`: advisory findings with dependency paths and remediation actions.
 - `report`: customer-ready remediation Markdown.
 - `sbom`: CycloneDX-style inventory view generated from the resolved graph.
+- `spdx`: SPDX-style inventory and relationship view generated from the graph.
 - `vex`: VEX-style affected/not-affected statements from graph impact results.
+- `policy`: customer policy violations for source, signature, version, and
+  coverage rules.
+- `sla`: risk and remediation summary combining advisory and policy findings.
+- `invalidate`: impacted graph snapshots for package, repository, advisory, and
+  policy changes.
 - `explain`: why a demo dependency is present, including paths and trace events.
 - `diff`: graph comparison across production and production+GPU contexts.
 
@@ -135,7 +156,7 @@ and Cargo packages for a CloudLinux x86_64 production context with GPU support.
 ## MVP Scope
 
 The Rust code is an executable MVP: it proves the core model, resolver,
-explainability, impact, platform, and export surfaces while staying small enough
-to review. Production ingestion adapters for `dnf`, `rpm`, `pip`, Poetry, Maven,
-Gradle, npm, Go modules, Cargo, registry APIs, and lockfile parsers are
-described in the architecture docs.
+explainability, impact, policy, invalidation, platform, and export surfaces
+while staying small enough to review. Production ingestion adapters for `dnf`,
+`rpm`, `pip`, Poetry, Maven, Gradle, npm, Go modules, Cargo, registry APIs, and
+lockfile parsers are described in the architecture docs.

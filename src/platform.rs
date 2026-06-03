@@ -29,8 +29,9 @@ impl ResolverJob {
         let tenant = tenant.into();
         let product = product.into();
         let resolver_version = resolver_version.into();
+        let context_key = context.stable_key();
         let stable = format!(
-            "{tenant}|{product}|{}|{}",
+            "{tenant}|{product}|{}|{context_key}|{}",
             roots
                 .iter()
                 .map(|root| format!("{}:{}", root.target, root.requirement))
@@ -81,6 +82,7 @@ impl ResolverWorkQueue {
 pub struct GraphRecord {
     pub tenant: String,
     pub product: String,
+    pub context: ResolutionContext,
     pub snapshot: GraphSnapshot,
     pub result: ResolveResult,
 }
@@ -139,6 +141,34 @@ impl InMemoryGraphStore {
             .collect()
     }
 
+    pub fn plan_invalidation(&self, changes: &[ChangeEvent]) -> InvalidationPlan {
+        let mut impacted_records = Vec::new();
+        let mut reasons = BTreeMap::<String, Vec<String>>::new();
+
+        for record in self.records.values() {
+            for change in changes {
+                if let Some(reason) = change.impacts(record) {
+                    let key = record_key(record);
+                    if !impacted_records.contains(&key) {
+                        impacted_records.push(key.clone());
+                    }
+                    reasons.entry(key).or_default().push(reason);
+                }
+            }
+        }
+
+        impacted_records.sort();
+        for record_reasons in reasons.values_mut() {
+            record_reasons.sort();
+            record_reasons.dedup();
+        }
+
+        InvalidationPlan {
+            impacted_records,
+            reasons,
+        }
+    }
+
     pub fn explain(
         &self,
         tenant: &str,
@@ -165,21 +195,75 @@ where
     }
 
     pub fn process(&self, job: ResolverJob) -> GraphRecord {
-        let result = Resolver::new(self.repository.clone()).resolve(job.roots, &job.context);
+        let context = job.context;
+        let result = Resolver::new(self.repository.clone()).resolve(job.roots, &context);
         let snapshot = GraphSnapshot::from_resolve_result(
             format!("{}/{}", job.tenant, job.product),
             job.resolver_version,
-            &job.context,
+            &context,
             &result,
         );
 
         GraphRecord {
             tenant: job.tenant,
             product: job.product,
+            context,
             snapshot,
             result,
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ChangeEvent {
+    PackageChanged(PackageId),
+    AdvisoryChanged {
+        advisory_id: String,
+        package: PackageId,
+    },
+    RepositoryChanged(String),
+    PolicyChanged(String),
+}
+
+impl ChangeEvent {
+    fn impacts(&self, record: &GraphRecord) -> Option<String> {
+        match self {
+            ChangeEvent::PackageChanged(package) => record
+                .contains_package(package)
+                .then(|| format!("package changed: {package}")),
+            ChangeEvent::AdvisoryChanged {
+                advisory_id,
+                package,
+            } => record
+                .contains_package(package)
+                .then(|| format!("advisory changed: {advisory_id} for {package}")),
+            ChangeEvent::RepositoryChanged(channel) => record
+                .context
+                .repository_channels
+                .contains(channel)
+                .then(|| format!("repository channel changed: {channel}")),
+            ChangeEvent::PolicyChanged(policy_id) => Some(format!("policy changed: {policy_id}")),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct InvalidationPlan {
+    pub impacted_records: Vec<String>,
+    pub reasons: BTreeMap<String, Vec<String>>,
+}
+
+impl InvalidationPlan {
+    pub fn is_empty(&self) -> bool {
+        self.impacted_records.is_empty()
+    }
+}
+
+fn record_key(record: &GraphRecord) -> String {
+    format!(
+        "{}/{}/{}",
+        record.tenant, record.product, record.snapshot.context_hash
+    )
 }
 
 #[cfg(test)]
@@ -218,6 +302,28 @@ mod tests {
         assert_eq!(queue.len(), 2);
         assert_eq!(queue.pop_next().unwrap(), first);
         assert_eq!(queue.len(), 1);
+    }
+
+    #[test]
+    fn resolver_jobs_include_context_in_stable_id() {
+        let app = PackageId::internal("app");
+        let roots = vec![DependencyRequirement::new(app, VersionRequirement::any())];
+        let base = ResolverJob::new(
+            "tenant",
+            "product",
+            roots.clone(),
+            ResolutionContext::cloudlinux_production_x86_64(),
+            "test",
+        );
+        let with_gpu = ResolverJob::new(
+            "tenant",
+            "product",
+            roots,
+            ResolutionContext::cloudlinux_production_x86_64().with_feature("gpu"),
+            "test",
+        );
+
+        assert_ne!(base.id, with_gpu.id);
     }
 
     #[test]
@@ -281,5 +387,42 @@ mod tests {
 
         assert_eq!(reports.len(), 1);
         assert_eq!(reports[0].product, "customer-a/scanner");
+    }
+
+    #[test]
+    fn store_plans_invalidation_for_package_repository_advisory_and_policy_changes() {
+        let app = PackageId::internal("app");
+        let dep = PackageId::python("urllib3");
+        let mut repo = InMemoryRepository::new();
+        repo.add(
+            PackageVersion::new(app.clone(), "1.0").with_dependencies(vec![
+                DependencyRequirement::new(dep.clone(), VersionRequirement::any()),
+            ]),
+        );
+        repo.add(PackageVersion::new(dep.clone(), "2.2.2"));
+        let job = ResolverJob::new(
+            "customer-a",
+            "scanner",
+            vec![DependencyRequirement::new(app, VersionRequirement::any())],
+            ResolutionContext::cloudlinux_production_x86_64(),
+            "test",
+        );
+        let record = ResolverService::new(repo).process(job);
+        let mut store = InMemoryGraphStore::new();
+        store.upsert(record);
+
+        let plan = store.plan_invalidation(&[
+            ChangeEvent::PackageChanged(dep.clone()),
+            ChangeEvent::AdvisoryChanged {
+                advisory_id: "CVE-1".to_string(),
+                package: dep,
+            },
+            ChangeEvent::RepositoryChanged("cloudlinux-baseos".to_string()),
+            ChangeEvent::PolicyChanged("default".to_string()),
+        ]);
+
+        assert!(!plan.is_empty());
+        assert_eq!(plan.impacted_records.len(), 1);
+        assert_eq!(plan.reasons[&plan.impacted_records[0]].len(), 4);
     }
 }

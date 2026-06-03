@@ -1,4 +1,5 @@
 use crate::advisory::{ImpactReport, VexStatus};
+use crate::policy::{PolicyEvaluation, PolicySeverity};
 use crate::resolver::ResolveResult;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -50,6 +51,61 @@ impl CycloneDxView {
                 escape_json(&name),
                 components,
                 dependencies
+            ),
+            name,
+        }
+    }
+
+    pub fn to_json(&self) -> &str {
+        &self.json
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SpdxView {
+    pub name: String,
+    pub json: String,
+}
+
+impl SpdxView {
+    pub fn from_result(name: impl Into<String>, result: &ResolveResult) -> Self {
+        let name = name.into();
+        let mut packages = result.nodes.keys().cloned().collect::<Vec<_>>();
+        packages.sort();
+        let package_json = packages
+            .iter()
+            .map(|package| {
+                format!(
+                    "{{\"SPDXID\":\"SPDXRef-Package-{}\",\"name\":\"{}\",\"versionInfo\":\"{}\",\"downloadLocation\":\"NOASSERTION\",\"filesAnalyzed\":false}}",
+                    spdx_id(&package.to_string()),
+                    escape_json(&package.id.name),
+                    escape_json(&package.version.to_string())
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let relationship_json = result
+            .edges
+            .iter()
+            .filter_map(|edge| {
+                edge.from.as_ref().map(|from| {
+                    format!(
+                        "{{\"spdxElementId\":\"SPDXRef-Package-{}\",\"relationshipType\":\"DEPENDS_ON\",\"relatedSpdxElement\":\"SPDXRef-Package-{}\"}}",
+                        spdx_id(&from.to_string()),
+                        spdx_id(&edge.to.to_string())
+                    )
+                })
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+
+        Self {
+            json: format!(
+                "{{\"spdxVersion\":\"SPDX-2.3\",\"dataLicense\":\"CC0-1.0\",\"SPDXID\":\"SPDXRef-DOCUMENT\",\"name\":\"{}\",\"documentNamespace\":\"https://graphscope.local/spdx/{}\",\"packages\":[{}],\"relationships\":[{}]}}",
+                escape_json(&name),
+                spdx_id(&name),
+                package_json,
+                relationship_json
             ),
             name,
         }
@@ -116,6 +172,77 @@ impl VexView {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SlaSummary {
+    pub product: String,
+    pub affected_findings: usize,
+    pub critical_findings: usize,
+    pub policy_errors: usize,
+    pub policy_warnings: usize,
+    pub remediation_actions: usize,
+    pub risk_score: u16,
+}
+
+impl SlaSummary {
+    pub fn from_impact_and_policy(
+        product: impl Into<String>,
+        impact: &ImpactReport,
+        policy: &PolicyEvaluation,
+    ) -> Self {
+        let product = product.into();
+        let affected_findings = impact.findings.len();
+        let critical_findings = impact
+            .findings
+            .iter()
+            .filter(|finding| finding.advisory.severity.to_string() == "critical")
+            .count();
+        let policy_errors = policy
+            .violations
+            .iter()
+            .filter(|violation| {
+                matches!(
+                    violation.severity,
+                    PolicySeverity::Error | PolicySeverity::Critical
+                )
+            })
+            .count();
+        let policy_warnings = policy
+            .violations
+            .iter()
+            .filter(|violation| violation.severity == PolicySeverity::Warning)
+            .count();
+        let remediation_actions = affected_findings + policy_errors;
+        let risk_score = ((critical_findings as u16) * 40)
+            .saturating_add((affected_findings as u16) * 10)
+            .saturating_add((policy_errors as u16) * 15)
+            .saturating_add((policy_warnings as u16) * 3)
+            .min(100);
+
+        Self {
+            product,
+            affected_findings,
+            critical_findings,
+            policy_errors,
+            policy_warnings,
+            remediation_actions,
+            risk_score,
+        }
+    }
+
+    pub fn to_json(&self) -> String {
+        format!(
+            "{{\"product\":\"{}\",\"affected_findings\":{},\"critical_findings\":{},\"policy_errors\":{},\"policy_warnings\":{},\"remediation_actions\":{},\"risk_score\":{}}}",
+            escape_json(&self.product),
+            self.affected_findings,
+            self.critical_findings,
+            self.policy_errors,
+            self.policy_warnings,
+            self.remediation_actions,
+            self.risk_score
+        )
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RemediationReport {
     pub product: String,
     pub markdown: String,
@@ -162,6 +289,13 @@ fn json_string_array<'a>(values: impl IntoIterator<Item = impl AsRef<str> + 'a>)
         .map(|value| format!("\"{}\"", escape_json(value.as_ref())))
         .collect::<Vec<_>>()
         .join(",")
+}
+
+fn spdx_id(value: &str) -> String {
+    value
+        .chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '-' })
+        .collect()
 }
 
 fn escape_json(value: &str) -> String {
@@ -212,6 +346,32 @@ mod tests {
         assert!(bom.to_json().contains("\"bomFormat\":\"CycloneDX\""));
         assert!(bom.to_json().contains("python:requests@2.32.3"));
         assert!(bom.to_json().contains("\"dependencies\""));
+    }
+
+    #[test]
+    fn spdx_view_exports_packages_and_relationships() {
+        let app = PackageId::internal("app");
+        let dep = PackageId::python("requests");
+        let mut repo = InMemoryRepository::new();
+        repo.add(
+            PackageVersion::new(app.clone(), "1.0").with_dependencies(vec![
+                DependencyRequirement::new(dep.clone(), VersionRequirement::any()),
+            ]),
+        );
+        repo.add(PackageVersion::new(dep, "2.32.3"));
+        let result = Resolver::new(repo).resolve(
+            vec![DependencyRequirement::new(app, VersionRequirement::any())],
+            &ResolutionContext::cloudlinux_production_x86_64(),
+        );
+
+        let spdx = SpdxView::from_result("demo", &result);
+
+        assert!(spdx.to_json().contains("\"spdxVersion\":\"SPDX-2.3\""));
+        assert!(
+            spdx.to_json()
+                .contains("\"relationshipType\":\"DEPENDS_ON\"")
+        );
+        assert!(spdx.to_json().contains("requests"));
     }
 
     #[test]
@@ -281,5 +441,46 @@ mod tests {
 
         assert!(report.to_markdown().contains("# Remediation Report"));
         assert!(report.to_markdown().contains("Evidence paths"));
+    }
+
+    #[test]
+    fn sla_summary_combines_impact_and_policy_counts() {
+        let app = PackageId::internal("app");
+        let dep = PackageId::python("urllib3");
+        let mut repo = InMemoryRepository::new();
+        repo.add(
+            PackageVersion::new(app.clone(), "1.0").with_dependencies(vec![
+                DependencyRequirement::new(dep.clone(), VersionRequirement::any()),
+            ]),
+        );
+        repo.add(PackageVersion::new(dep.clone(), "2.2.2"));
+        let result = Resolver::new(repo).resolve(
+            vec![DependencyRequirement::new(app, VersionRequirement::any())],
+            &ResolutionContext::cloudlinux_production_x86_64(),
+        );
+        let advisory = Advisory::new(
+            "CVE-1",
+            "urllib3",
+            dep,
+            VersionRequirement::parse("<2.2.3"),
+            AdvisorySeverity::Critical,
+        );
+        let impact = ImpactReport::from_result("demo", &result, &[advisory]);
+        let policy = crate::policy::PolicyEvaluation {
+            violations: vec![crate::policy::PolicyViolation {
+                rule: "deny-package".to_string(),
+                severity: crate::policy::PolicySeverity::Error,
+                package: None,
+                edge: None,
+                message: "blocked".to_string(),
+            }],
+        };
+
+        let summary = SlaSummary::from_impact_and_policy("demo", &impact, &policy);
+
+        assert_eq!(summary.affected_findings, 1);
+        assert_eq!(summary.critical_findings, 1);
+        assert_eq!(summary.policy_errors, 1);
+        assert!(summary.to_json().contains("\"risk_score\""));
     }
 }

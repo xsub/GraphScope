@@ -516,6 +516,100 @@ impl ResolutionContext {
     pub fn includes_scope(&self, scope: &DependencyScope) -> bool {
         self.include_scopes.contains(scope)
     }
+
+    pub fn stable_key(&self) -> String {
+        let profiles = self
+            .profiles
+            .iter()
+            .map(build_profile_key)
+            .collect::<Vec<_>>()
+            .join(",");
+        let features = self
+            .enabled_features
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+            .join(",");
+        let scopes = self
+            .include_scopes
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(",");
+        let languages = self
+            .language_versions
+            .iter()
+            .map(|(ecosystem, version)| format!("{ecosystem}:{version}"))
+            .collect::<Vec<_>>()
+            .join(",");
+        let repositories = self
+            .repository_channels
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+            .join(",");
+
+        format!(
+            "os={};distro={};arch={};major={:?};profiles=[{}];features=[{}];scopes=[{}];optional={};languages=[{}];repositories=[{}]",
+            operating_system_key(&self.os),
+            distro_flavor_key(&self.distro),
+            architecture_key(&self.arch),
+            self.distro_major_version,
+            profiles,
+            features,
+            scopes,
+            self.include_optional,
+            languages,
+            repositories
+        )
+    }
+}
+
+fn operating_system_key(value: &OperatingSystem) -> String {
+    match value {
+        OperatingSystem::Any => "any".to_string(),
+        OperatingSystem::Linux => "linux".to_string(),
+        OperatingSystem::Windows => "windows".to_string(),
+        OperatingSystem::Macos => "macos".to_string(),
+        OperatingSystem::Other(value) => format!("other:{value}"),
+    }
+}
+
+fn distro_flavor_key(value: &DistroFlavor) -> String {
+    match value {
+        DistroFlavor::Any => "any".to_string(),
+        DistroFlavor::AlmaLinux => "almalinux".to_string(),
+        DistroFlavor::CloudLinux => "cloudlinux".to_string(),
+        DistroFlavor::Rhel => "rhel".to_string(),
+        DistroFlavor::Fedora => "fedora".to_string(),
+        DistroFlavor::Rocky => "rocky".to_string(),
+        DistroFlavor::Other(value) => format!("other:{value}"),
+    }
+}
+
+fn architecture_key(value: &Architecture) -> String {
+    match value {
+        Architecture::Any => "any".to_string(),
+        Architecture::X86_64 => "x86_64".to_string(),
+        Architecture::Aarch64 => "aarch64".to_string(),
+        Architecture::Ppc64le => "ppc64le".to_string(),
+        Architecture::S390x => "s390x".to_string(),
+        Architecture::Other(value) => format!("other:{value}"),
+    }
+}
+
+fn build_profile_key(value: &BuildProfile) -> String {
+    match value {
+        BuildProfile::Production => "production".to_string(),
+        BuildProfile::Development => "development".to_string(),
+        BuildProfile::Test => "test".to_string(),
+        BuildProfile::Fips => "fips".to_string(),
+        BuildProfile::Els => "els".to_string(),
+        BuildProfile::KernelCare => "kernelcare".to_string(),
+        BuildProfile::ELevate => "elevate".to_string(),
+        BuildProfile::Gpu => "gpu".to_string(),
+        BuildProfile::Other(value) => format!("other:{value}"),
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -965,6 +1059,19 @@ mod tests {
         assert!(context.includes_scope(&DependencyScope::System));
         assert!(context.includes_scope(&DependencyScope::Weak));
         assert!(!context.includes_scope(&DependencyScope::Development));
+    }
+
+    #[test]
+    fn context_stable_key_tracks_environment_changes() {
+        let base = ResolutionContext::cloudlinux_production_x86_64();
+        let with_gpu = ResolutionContext::cloudlinux_production_x86_64().with_feature("gpu");
+
+        assert_eq!(
+            base.stable_key(),
+            ResolutionContext::cloudlinux_production_x86_64().stable_key()
+        );
+        assert_ne!(base.stable_key(), with_gpu.stable_key());
+        assert!(with_gpu.stable_key().contains("features=[gpu]"));
     }
 
     #[test]

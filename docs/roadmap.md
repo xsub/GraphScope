@@ -60,7 +60,8 @@ Status: MVP implemented with in-memory control-plane primitives.
 - Add graph closure cache and reverse-dependency indexes.
   MVP query APIs compute closure and reverse dependencies from snapshots.
 - Add incremental invalidation based on repository/advisory/package changes.
-  Follow-up production feature.
+  MVP invalidation planning is implemented for package, advisory, repository,
+  and policy changes; durable event streams remain follow-up.
 - Add multi-tenant access controls and customer data isolation.
   MVP graph records are keyed by tenant, product, and context hash.
 - Add API and UI for "why is this dependency present?" investigations.
@@ -71,14 +72,16 @@ Status: MVP implemented with in-memory control-plane primitives.
 Status: MVP implemented for generated views and reports.
 
 - Export CycloneDX, SPDX, and VEX views.
-  CycloneDX-style and VEX-style views are implemented; SPDX remains follow-up.
+  CycloneDX-style, SPDX-style, and VEX-style views are implemented.
 - Generate customer remediation reports.
   Implemented through `RemediationReport` and `graphscope report`.
 - Add policy engine for allowed registries, pinned versions, unsupported EOL
   dependencies, and CloudLinux/TuxCare coverage.
-  Follow-up production feature.
+  MVP policy evaluation is implemented for source allowlists, signing
+  requirements, denied packages, wildcard requirements, and package coverage.
 - Add SLA dashboards for exposure, patch status, and lifecycle risk.
-  Follow-up production feature.
+  MVP SLA risk summaries are implemented for advisory and policy findings;
+  production dashboards remain follow-up.
 
 ## Open Decisions
 

@@ -87,7 +87,7 @@ Recommended storage pattern:
 The MVP implements this as an in-memory graph store keyed by tenant, product,
 and context hash. It is intentionally small, but it exercises the production
 contract: stored resolved snapshots can be queried for package reachability,
-reverse dependencies, explanations, and advisory impact.
+reverse dependencies, explanations, advisory impact, and invalidation planning.
 
 ### Graph Query And Impact API
 
@@ -103,6 +103,10 @@ The advisory impact layer matches advisories against selected package versions
 and returns affected findings with dependency paths, reverse dependents,
 severity, status, and remediation text.
 
+The invalidation planner maps package, advisory, repository-channel, and policy
+changes back to impacted tenant/product/context snapshots so resolver work can
+be re-run only where the graph might actually change.
+
 ### Policy And Reporting API
 
 Serves product workflows:
@@ -114,9 +118,12 @@ Serves product workflows:
   in upstream scanners?"
 - "Which optional GPU dependencies are active only for x86_64 images?"
 - "Which graph changed after a repository update?"
+- "Which policy or signature rule blocks this customer graph?"
+- "Which snapshots must be recalculated after this policy or advisory change?"
 
 The MVP exposes these workflows through CLI commands and public Rust APIs:
-`impact`, `report`, `sbom`, `vex`, `explain`, and `diff`.
+`impact`, `report`, `sbom`, `spdx`, `vex`, `policy`, `sla`, `invalidate`,
+`explain`, and `diff`.
 
 ## Universal Data Model
 
@@ -177,6 +184,9 @@ GraphScope should optimize for repeated resolution under similar contexts.
 - Store graph closures for popular roots and advisories.
 - Use incremental invalidation when only one repository, advisory, or package
   version changes.
+- Treat policy changes as graph-affecting metadata changes because customer
+  eligibility, source allowlists, and coverage rules can alter remediation
+  obligations without changing package versions.
 - Keep resolver traces compact but complete enough for audit.
 
 ## Security And Trust
@@ -207,6 +217,7 @@ be generated as views:
 - SPDX for compliance workflows;
 - VEX for vulnerability status;
 - internal TuxCare impact reports with resolver evidence;
+- SLA risk summaries for executive and customer-success workflows;
 - customer-facing remediation plans.
 
 No export format should become the internal source of truth.

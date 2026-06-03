@@ -1,6 +1,7 @@
 use graphscope::{
-    CycloneDxView, GraphDiff, GraphQuery, GraphSnapshot, ImpactReport, RemediationReport, Resolver,
-    VexView, demo_advisories, demo_repository,
+    ChangeEvent, CycloneDxView, GraphDiff, GraphQuery, GraphSnapshot, ImpactReport,
+    InMemoryGraphStore, RemediationReport, Resolver, ResolverJob, ResolverService, SlaSummary,
+    SpdxView, VexView, demo_advisories, demo_policy_set, demo_repository,
 };
 
 fn main() {
@@ -14,7 +15,11 @@ fn main() {
         "impact" => print_impact(),
         "report" => print_report(),
         "sbom" => print_sbom(),
+        "spdx" => print_spdx(),
         "vex" => print_vex(),
+        "policy" => print_policy(),
+        "sla" => print_sla(),
+        "invalidate" => print_invalidation(),
         "explain" => print_explain(),
         "diff" => print_diff(),
         "help" | "--help" | "-h" => print_help(),
@@ -35,7 +40,11 @@ fn print_help() {
     println!("  graphscope impact   print advisory impact for the demo graph");
     println!("  graphscope report   print a remediation report for the demo graph");
     println!("  graphscope sbom   print a CycloneDX-style SBOM view");
+    println!("  graphscope spdx   print an SPDX-style SBOM view");
     println!("  graphscope vex   print a VEX-style advisory view");
+    println!("  graphscope policy   evaluate demo customer policy");
+    println!("  graphscope sla   print an SLA-style risk summary");
+    println!("  graphscope invalidate   plan graph invalidation from metadata changes");
     println!("  graphscope explain   explain why urllib3 is present in the demo graph");
     println!("  graphscope diff   compare demo graph with and without optional GPU context");
     println!("  graphscope help   show this help");
@@ -193,6 +202,13 @@ fn print_sbom() {
     println!("{}", bom.to_json());
 }
 
+fn print_spdx() {
+    let result = demo_result();
+    let spdx = SpdxView::from_result("tuxcare-demo", &result);
+
+    println!("{}", spdx.to_json());
+}
+
 fn print_vex() {
     let result = demo_result();
     let advisories = demo_advisories();
@@ -200,6 +216,70 @@ fn print_vex() {
     let vex = VexView::from_impact_report(&impact);
 
     println!("{}", vex.to_json());
+}
+
+fn print_policy() {
+    let result = demo_result();
+    let evaluation = demo_policy_set().evaluate(&result);
+
+    println!("Policy evaluation");
+    println!("Compliant: {}", evaluation.is_compliant());
+    if evaluation.violations.is_empty() {
+        println!("- none");
+    }
+    for violation in evaluation.violations {
+        let package = violation
+            .package
+            .as_ref()
+            .map(ToString::to_string)
+            .unwrap_or_else(|| "graph".to_string());
+        println!(
+            "- {} {} {}: {}",
+            violation.severity, violation.rule, package, violation.message
+        );
+    }
+}
+
+fn print_sla() {
+    let result = demo_result();
+    let advisories = demo_advisories();
+    let impact = ImpactReport::from_result("tuxcare-demo", &result, &advisories);
+    let policy = demo_policy_set().evaluate(&result);
+    let summary = SlaSummary::from_impact_and_policy("tuxcare-demo", &impact, &policy);
+
+    println!("{}", summary.to_json());
+}
+
+fn print_invalidation() {
+    let (repository, roots, context) = demo_repository();
+    let service = ResolverService::new(repository);
+    let record = service.process(ResolverJob::new(
+        "customer-a",
+        "tuxcare-demo",
+        roots,
+        context,
+        env!("CARGO_PKG_VERSION"),
+    ));
+    let mut store = InMemoryGraphStore::new();
+    store.upsert(record);
+    let plan = store.plan_invalidation(&[
+        ChangeEvent::PackageChanged(graphscope::PackageId::python("urllib3")),
+        ChangeEvent::RepositoryChanged("cloudlinux-baseos".to_string()),
+        ChangeEvent::PolicyChanged("default-policy".to_string()),
+    ]);
+
+    println!("Invalidation plan");
+    if plan.is_empty() {
+        println!("- none");
+    }
+    for record in &plan.impacted_records {
+        println!("- rerun {record}");
+        if let Some(reasons) = plan.reasons.get(record) {
+            for reason in reasons {
+                println!("  reason: {reason}");
+            }
+        }
+    }
 }
 
 fn print_explain() {

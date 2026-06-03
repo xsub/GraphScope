@@ -1,9 +1,12 @@
+use std::collections::BTreeSet;
+
 use crate::advisory::{Advisory, AdvisorySeverity};
 use crate::model::{
     Architecture, ArtifactMetadata, BuildProfile, ContextPredicate, DependencyRelation,
     DependencyRequirement, DependencyScope, Ecosystem, PackageId, PackageSource, PackageVersion,
     ResolutionContext, VersionRequirement,
 };
+use crate::policy::{PolicyRule, PolicySet, PolicySeverity};
 use crate::repository::InMemoryRepository;
 
 pub fn demo_repository() -> (
@@ -90,6 +93,33 @@ pub fn demo_advisories() -> Vec<Advisory> {
         )
         .summary("This advisory is present to demonstrate not-affected VEX output."),
     ]
+}
+
+pub fn demo_policy_set() -> PolicySet {
+    PolicySet::new(vec![
+        PolicyRule::AllowSources {
+            ecosystem: Some(Ecosystem::Python),
+            allowed_sources: BTreeSet::from(["registry:https://pypi.org/simple".to_string()]),
+            severity: PolicySeverity::Error,
+        },
+        PolicyRule::RequireSigned {
+            ecosystem: Some(Ecosystem::Rpm),
+            severity: PolicySeverity::Error,
+        },
+        PolicyRule::RequireSigned {
+            ecosystem: Some(Ecosystem::Python),
+            severity: PolicySeverity::Warning,
+        },
+        PolicyRule::DenyPackage {
+            package: PackageId::python("urllib3"),
+            reason: "unsupported package line requires remediation tracking".to_string(),
+            severity: PolicySeverity::Critical,
+        },
+        PolicyRule::DenyWildcardRequirement {
+            ecosystem: Some(Ecosystem::Maven),
+            severity: PolicySeverity::Warning,
+        },
+    ])
 }
 
 fn add_rpm_packages(repo: &mut InMemoryRepository, kernelcare: PackageId) {

@@ -20,6 +20,8 @@
 - `evidence::tests::evidence_record_id_is_stable_for_identical_inputs`: Evidence records receive stable IDs for identical inputs.
 - `export::tests::cyclonedx_view_exports_components_and_dependencies`: CycloneDX view exports graph components and dependencies.
 - `export::tests::remediation_report_includes_paths_and_actions`: Remediation report includes dependency paths and actions.
+- `export::tests::sla_summary_combines_impact_and_policy_counts`: SLA summary combines advisory and policy counts.
+- `export::tests::spdx_view_exports_packages_and_relationships`: SPDX view exports packages and dependency relationships.
 - `export::tests::vex_view_exports_affected_and_unaffected_statements`: VEX view exports affected and not-affected statements.
 - `lockfile::tests::parses_cargo_lock_package_blocks`: Cargo.lock parser emits locked crate evidence.
 - `lockfile::tests::parses_go_mod_single_and_block_requirements`: Go module parser emits locked module evidence from single-line and block requirements.
@@ -32,6 +34,7 @@
 - `model::tests::comma_ranges_are_conjunctive`: Comma-separated version ranges are treated as AND constraints.
 - `model::tests::comparison_clauses_include_and_exclude_boundaries`: Version comparison clauses honor inclusive and exclusive boundaries.
 - `model::tests::composed_context_predicates_support_any_all_and_not`: Context predicates support any, all, and not composition.
+- `model::tests::context_stable_key_tracks_environment_changes`: Context stable keys change when environment inputs change.
 - `model::tests::dependency_builder_records_relation_exclusion_and_evidence`: Dependency builder preserves relation, exclusions, and evidence.
 - `model::tests::exact_requirement_uses_normalized_equality`: Exact requirements use normalized version equality.
 - `model::tests::feature_profile_repo_and_distro_predicates_match_context`: Feature, profile, repository, and distro predicates match context.
@@ -55,9 +58,15 @@
 - `model::tests::wildcard_and_empty_requirements_match_any_version`: Wildcard and empty requirements match any version.
 - `model::tests::with_optional_enables_optional_resolution_scope`: Optional context enables optional dependency scope.
 - `model::tests::zero_major_caret_is_conservative`: Zero-major caret ranges stay within the compatible minor range.
+- `platform::tests::resolver_jobs_include_context_in_stable_id`: Resolver job IDs include context so environment-specific jobs do not collide.
 - `platform::tests::resolver_service_creates_graph_record_for_store`: Resolver service creates graph records for the graph store.
+- `platform::tests::store_plans_invalidation_for_package_repository_advisory_and_policy_changes`: Graph store plans invalidation for package, repository, advisory, and policy changes.
 - `platform::tests::store_runs_impact_reports_across_records`: Graph store runs advisory impact across stored records.
 - `platform::tests::work_queue_processes_jobs_fifo`: Resolver work queue processes jobs in FIFO order.
+- `policy::tests::policy_detects_denied_and_uncovered_packages`: Policy evaluation detects denied packages and missing coverage metadata.
+- `policy::tests::policy_detects_disallowed_sources`: Policy evaluation detects sources outside an allowlist.
+- `policy::tests::policy_detects_wildcard_requirements`: Policy evaluation detects wildcard dependency requirements.
+- `policy::tests::policy_requires_signed_packages_for_ecosystem`: Policy evaluation detects unsigned packages for an ecosystem.
 - `query::tests::diff_reports_added_removed_and_changed_packages`: Graph diff reports added, removed, and changed packages.
 - `query::tests::query_explains_selected_package_with_trace_events`: Graph query explains selected packages with trace events.
 - `query::tests::query_finds_dependency_paths_and_reverse_dependents`: Graph query finds dependency paths and reverse dependents.
@@ -101,10 +110,14 @@
 - `cli_diff_outputs_context_difference`: CLI diff prints context-based graph differences.
 - `cli_explain_outputs_dependency_paths`: CLI explain prints dependency paths for a selected package.
 - `cli_help_outputs_usage`: CLI help prints usage.
+- `cli_invalidate_outputs_invalidation_plan`: CLI invalidate prints impacted graph snapshots and invalidation reasons.
 - `cli_impact_outputs_advisory_findings`: CLI impact prints advisory findings.
+- `cli_policy_outputs_policy_violations`: CLI policy prints compliance status and policy violations.
 - `cli_report_outputs_remediation_markdown`: CLI report prints remediation Markdown.
 - `cli_sbom_outputs_cyclonedx_view`: CLI sbom prints a CycloneDX-style view.
+- `cli_sla_outputs_risk_summary`: CLI sla prints advisory and policy risk summary JSON.
 - `cli_snapshot_outputs_stable_json_sections`: CLI snapshot command prints stable JSON graph sections.
+- `cli_spdx_outputs_spdx_view`: CLI spdx prints an SPDX-style view.
 - `cli_vex_outputs_status_statements`: CLI vex prints affected and not-affected status statements.
 - `fixture_cargo_lock_parses_locked_crates`: Cargo fixture parses locked crate evidence.
 - `fixture_go_mod_parses_locked_modules`: Go fixture parses locked module evidence.
