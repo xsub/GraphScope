@@ -19,7 +19,7 @@
 ![Go Modules](https://img.shields.io/badge/Go%20modules-modeled-00add8?logo=go)
 ![Cargo](https://img.shields.io/badge/Cargo-modeled-orange?logo=rust)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-76%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-94%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Dependency Free](https://img.shields.io/badge/runtime%20deps-0-success)
 
@@ -61,7 +61,9 @@ architecture package:
 
 - universal package, version, scope, condition, and provenance model,
 - context-aware resolver with ecosystem-specific version selection policy,
+- normalized evidence records and lockfile evidence parsers,
 - transitive dependency graph output,
+- stable JSON graph snapshots for golden tests and audit views,
 - conflict and skipped-dependency diagnostics,
 - demo dataset for a TuxCare/CloudLinux style product stack,
 - tests for version ranges, environment markers, optional features, Maven-style
@@ -73,6 +75,7 @@ architecture package:
 ```sh
 cargo test
 cargo run -- demo
+cargo run -- snapshot
 ```
 
 The demo resolves a synthetic TuxCare stack across RPM, Python, Maven, npm, Go,

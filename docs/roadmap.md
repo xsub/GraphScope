@@ -13,14 +13,20 @@ Status: implemented in this repository.
 
 ## Phase 1: Resolver Correctness Foundation
 
+Status: in progress.
+
 - Build fixture corpus for RPM, pip, Poetry, Maven, Gradle, npm, Go, and Cargo.
+  Initial pip, Go, and Cargo fixtures are implemented.
 - Add lockfile parsers and normalized evidence records.
+  Initial pip pinned requirements, Go module requirements, Cargo.lock package
+  parsing, and normalized evidence catalog are implemented.
 - Integrate libsolv or DNF metadata for RPM resolution.
 - Add Maven effective-POM and Gradle dependency insight ingestion.
 - Add npm package-lock and peer dependency propagation.
 - Add Go module graph and MVS adapter.
 - Add Cargo feature unification and target dependency adapter.
 - Emit graph snapshots as stable JSON for golden tests.
+  Implemented for resolver output and exposed through `graphscope snapshot`.
 
 ## Phase 2: CloudLinux/TuxCare Product Slice
 

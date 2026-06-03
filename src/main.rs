@@ -1,4 +1,4 @@
-use graphscope::{Resolver, demo_repository};
+use graphscope::{GraphSnapshot, Resolver, demo_repository};
 
 fn main() {
     let command = std::env::args()
@@ -7,6 +7,7 @@ fn main() {
 
     match command.as_str() {
         "demo" => run_demo(),
+        "snapshot" => print_snapshot(),
         "help" | "--help" | "-h" => print_help(),
         unknown => {
             eprintln!("unknown command: {unknown}");
@@ -21,7 +22,21 @@ fn print_help() {
     println!();
     println!("Usage:");
     println!("  graphscope demo   resolve the demo CloudLinux/TuxCare dependency graph");
+    println!("  graphscope snapshot   print the demo graph as stable JSON");
     println!("  graphscope help   show this help");
+}
+
+fn print_snapshot() {
+    let (repository, roots, context) = demo_repository();
+    let result = Resolver::new(repository).resolve(roots, &context);
+    let snapshot = GraphSnapshot::from_resolve_result(
+        "tuxcare-demo",
+        env!("CARGO_PKG_VERSION"),
+        &context,
+        &result,
+    );
+
+    println!("{}", snapshot.to_json_pretty());
 }
 
 fn run_demo() {

@@ -1,7 +1,9 @@
 use std::process::Command;
 
 use graphscope::{
-    DependencyRequirement, PackageId, PackageVersion, Resolver, VersionRequirement, demo_repository,
+    DependencyRequirement, GraphSnapshot, PackageId, PackageVersion, Resolver, VersionRequirement,
+    demo_repository, parse_cargo_lock_packages, parse_go_mod_requirements,
+    parse_pip_requirements_lock,
 };
 
 #[test]
@@ -95,4 +97,72 @@ fn cli_help_outputs_usage() {
 
     assert!(output.status.success());
     assert!(String::from_utf8_lossy(&output.stdout).contains("Usage:"));
+}
+
+#[test]
+fn cli_snapshot_outputs_stable_json_sections() {
+    let output = Command::new(env!("CARGO_BIN_EXE_graphscope"))
+        .arg("snapshot")
+        .output()
+        .expect("snapshot command should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("\"snapshot_id\""));
+    assert!(stdout.contains("\"context_hash\""));
+    assert!(stdout.contains("\"nodes\""));
+    assert!(stdout.contains("\"edges\""));
+}
+
+#[test]
+fn fixture_pip_lockfile_parses_locked_packages() {
+    let input = include_str!("fixtures/pip/requirements.lock");
+    let catalog =
+        parse_pip_requirements_lock(input, "tests/fixtures/pip/requirements.lock").unwrap();
+
+    assert_eq!(catalog.locked_packages().len(), 3);
+    assert!(
+        catalog
+            .locked_packages()
+            .iter()
+            .any(|package| package.id == PackageId::python("requests"))
+    );
+}
+
+#[test]
+fn fixture_go_mod_parses_locked_modules() {
+    let input = include_str!("fixtures/go/go.mod");
+    let catalog = parse_go_mod_requirements(input, "tests/fixtures/go/go.mod").unwrap();
+
+    assert_eq!(catalog.locked_packages().len(), 2);
+    assert!(
+        catalog
+            .locked_packages()
+            .iter()
+            .any(|package| package.id == PackageId::go("golang.org/x/net"))
+    );
+}
+
+#[test]
+fn fixture_cargo_lock_parses_locked_crates() {
+    let input = include_str!("fixtures/cargo/Cargo.lock");
+    let catalog = parse_cargo_lock_packages(input, "tests/fixtures/cargo/Cargo.lock").unwrap();
+
+    assert_eq!(catalog.locked_packages().len(), 1);
+    assert_eq!(
+        catalog.locked_packages()[0].id,
+        PackageId::cargo("petgraph")
+    );
+}
+
+#[test]
+fn public_api_creates_stable_snapshot_from_resolved_graph() {
+    let (repository, roots, context) = demo_repository();
+    let result = Resolver::new(repository).resolve(roots, &context);
+    let snapshot = GraphSnapshot::from_resolve_result("demo", "test", &context, &result);
+    let json = snapshot.to_json_pretty();
+
+    assert!(snapshot.id.starts_with("snap-"));
+    assert!(snapshot.context_hash.starts_with("ctx-"));
+    assert!(json.contains("tuxcare-supply-chain-platform"));
 }

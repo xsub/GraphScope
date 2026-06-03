@@ -10,6 +10,15 @@
 - `demo::tests::demo_graph_skips_python_backport_on_python_311`: Demo graph skips Python backport when Python 3.11 is active.
 - `demo::tests::demo_graph_uses_go_minimal_version_selection`: Demo graph uses Go minimal version selection.
 - `demo::tests::demo_repository_contains_expected_candidate_count`: Demo repository contains the expected candidate and root counts.
+- `evidence::tests::catalog_deduplicates_records_by_id`: Evidence catalog deduplicates records by stable ID.
+- `evidence::tests::catalog_queries_records_by_package`: Evidence catalog finds package-related records.
+- `evidence::tests::catalog_returns_locked_packages`: Evidence catalog returns locked package references.
+- `evidence::tests::evidence_record_id_is_stable_for_identical_inputs`: Evidence records receive stable IDs for identical inputs.
+- `lockfile::tests::parses_cargo_lock_package_blocks`: Cargo.lock parser emits locked crate evidence.
+- `lockfile::tests::parses_go_mod_single_and_block_requirements`: Go module parser emits locked module evidence from single-line and block requirements.
+- `lockfile::tests::parses_pip_pinned_requirements_as_locked_evidence`: pip requirements parser emits locked package evidence.
+- `lockfile::tests::rejects_cargo_lock_package_without_version`: Cargo.lock parser rejects incomplete package blocks.
+- `lockfile::tests::rejects_unpinned_pip_requirement_lines`: pip requirements parser rejects unpinned requirements.
 - `model::tests::any_context_predicates_match_specific_context_values`: Wildcard OS, distro, and architecture predicates match concrete context values.
 - `model::tests::caret_requirement_matches_semver_compatible_versions`: Caret ranges accept compatible semver versions.
 - `model::tests::cloudlinux_context_includes_runtime_build_system_and_weak_scopes`: CloudLinux context includes runtime, build, system, and weak scopes.
@@ -66,9 +75,18 @@
 - `resolver::tests::selected_version_returns_none_for_unresolved_package`: Selected version lookup returns none for unresolved package.
 - `resolver::tests::test_scope_dependency_is_skipped_in_production_context`: Test-scope dependency is skipped in production context.
 - `resolver::tests::unresolved_transitive_dependency_keeps_resolved_parent_and_reports_conflict`: Missing transitive dependency keeps parent and reports conflict.
+- `snapshot::tests::snapshot_id_is_stable_for_same_graph`: Graph snapshots produce stable IDs for identical graphs.
+- `snapshot::tests::snapshot_json_contains_nodes_edges_skipped_and_conflicts`: Snapshot JSON includes nodes, edges, skipped dependencies, and conflicts.
+- `snapshot::tests::snapshot_json_escapes_evidence_strings`: Snapshot JSON escapes evidence text safely.
+- `snapshot::tests::snapshot_json_keeps_commas_inside_string_values`: Snapshot JSON preserves commas inside string values.
 - `cli_demo_outputs_dependency_graph_sections`: CLI demo prints graph sections.
 - `cli_help_outputs_usage`: CLI help prints usage.
+- `cli_snapshot_outputs_stable_json_sections`: CLI snapshot command prints stable JSON graph sections.
+- `fixture_cargo_lock_parses_locked_crates`: Cargo fixture parses locked crate evidence.
+- `fixture_go_mod_parses_locked_modules`: Go fixture parses locked module evidence.
+- `fixture_pip_lockfile_parses_locked_packages`: pip fixture parses locked package evidence.
 - `public_api_can_build_and_resolve_custom_repository`: Public API builds and resolves a custom repository.
+- `public_api_creates_stable_snapshot_from_resolved_graph`: Public API creates a stable graph snapshot from a resolved graph.
 - `public_api_exposes_skipped_dependency_reason`: Public API exposes skipped dependency reasons.
 - `public_api_reports_conflict_for_missing_candidate`: Public API reports missing candidate conflicts.
 - `public_api_resolves_demo_graph_without_conflicts`: Public API resolves the demo graph without conflicts.
