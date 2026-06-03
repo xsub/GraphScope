@@ -94,6 +94,12 @@ and context hash. It is intentionally small, but it exercises the production
 contract: stored resolved snapshots can be queried for package reachability,
 reverse dependencies, explanations, advisory impact, and invalidation planning.
 
+The durable MVP store persists immutable snapshot JSON files plus a compact
+snapshot index through `FileGraphStore` and the `graphscope persist <dir>`
+workflow. Production SQLite, RocksDB, or columnar adapters should preserve the
+same immutable snapshot contract while adding concurrency, compaction, and
+analytics indexes.
+
 ### Graph Query And Impact API
 
 The MVP graph query layer answers:
@@ -128,7 +134,7 @@ Serves product workflows:
 
 The MVP exposes these workflows through CLI commands and public Rust APIs:
 `impact`, `report`, `sbom`, `spdx`, `vex`, `policy`, `sla`, `invalidate`,
-`explain`, and `diff`.
+`evidence`, `persist`, `explain`, and `diff`.
 
 ## Universal Data Model
 

@@ -1,4 +1,5 @@
 use std::process::Command;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use graphscope::{
     DependencyRequirement, Ecosystem, EvidenceConfidence, GraphSnapshot, PackageId, PackageVersion,
@@ -249,6 +250,34 @@ fn cli_evidence_outputs_normalized_summary() {
     assert!(stdout.contains("Records: 3"));
     assert!(stdout.contains("Ecosystems:"));
     assert!(stdout.contains("package npm:react@18.3.1"));
+}
+
+#[test]
+fn cli_persist_writes_file_store_snapshot() {
+    let store_dir = std::env::temp_dir().join(format!(
+        "graphscope-cli-persist-{}",
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let output = Command::new(env!("CARGO_BIN_EXE_graphscope"))
+        .arg("persist")
+        .arg(&store_dir)
+        .output()
+        .expect("persist command should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Persisted snapshot"));
+    assert!(stdout.contains("customer-a"));
+    assert!(store_dir.join("index.tsv").is_file());
+    assert_eq!(
+        std::fs::read_dir(store_dir.join("snapshots"))
+            .unwrap()
+            .count(),
+        1
+    );
 }
 
 #[test]

@@ -24,8 +24,9 @@
 ![Policy Engine](https://img.shields.io/badge/policy-engine-d73a49)
 ![SLA Summary](https://img.shields.io/badge/SLA-summary-0969da)
 ![Invalidation Planner](https://img.shields.io/badge/invalidation-planner-8250df)
+![File Store](https://img.shields.io/badge/file%20store-durable%20MVP-0a7)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-150%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-154%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Dependency Free](https://img.shields.io/badge/runtime%20deps-0-success)
 
@@ -77,6 +78,8 @@ package:
   graph diffs,
 - advisory impact reports with evidence-backed dependency paths,
 - in-memory resolver job queue and graph store for customer/product snapshots,
+- dependency-free durable file store for immutable graph snapshot JSON and
+  snapshot indexes,
 - incremental invalidation planning for package, repository, advisory, and
   policy changes,
 - customer policy evaluation for allowed sources, signing, denied packages,
@@ -104,6 +107,7 @@ cargo run -- policy
 cargo run -- sla
 cargo run -- invalidate
 cargo run -- evidence tests/fixtures/npm/package-lock.json
+cargo run -- persist /tmp/graphscope-store
 cargo run -- explain
 cargo run -- diff
 ```
@@ -127,6 +131,8 @@ and Cargo packages for a CloudLinux x86_64 production context with GPU support.
   policy changes.
 - `evidence <path>`: auto-detect and normalize a manifest, lockfile, or RPM
   inventory into evidence records.
+- `persist <dir>`: resolve and persist the demo graph snapshot into a durable
+  file-backed store.
 - `explain`: why a demo dependency is present, including paths and trace events.
 - `diff`: graph comparison across production and production+GPU contexts.
 
@@ -163,7 +169,7 @@ and Cargo packages for a CloudLinux x86_64 production context with GPU support.
 ## MVP Scope
 
 The Rust code is an executable MVP: it proves the core model, resolver,
-explainability, impact, policy, invalidation, platform, and export surfaces
-while staying small enough to review. Production ingestion adapters for `dnf`,
-`rpm`, `pip`, Poetry, Maven, Gradle, npm, Go modules, Cargo, registry APIs, and
-lockfile parsers are described in the architecture docs.
+explainability, impact, policy, invalidation, durable storage, platform, and
+export surfaces while staying small enough to review. Production ingestion
+adapters for `dnf`, `rpm`, `pip`, Poetry, Maven, Gradle, npm, Go modules, Cargo,
+registry APIs, and lockfile parsers are described in the architecture docs.

@@ -116,6 +116,9 @@
 - `snapshot::tests::snapshot_json_contains_trace_decision_details`: Snapshot JSON includes resolver trace decision details.
 - `snapshot::tests::snapshot_json_escapes_evidence_strings`: Snapshot JSON escapes evidence text safely.
 - `snapshot::tests::snapshot_json_keeps_commas_inside_string_values`: Snapshot JSON preserves commas inside string values.
+- `storage::tests::file_graph_store_lists_and_finds_context_records`: File graph store lists stored snapshots and finds records by context.
+- `storage::tests::file_graph_store_persists_and_reads_snapshot_json`: File graph store persists and reads immutable snapshot JSON.
+- `storage::tests::file_graph_store_repeated_persist_is_idempotent`: File graph store repeated persistence does not duplicate index records.
 - `cli_demo_outputs_dependency_graph_sections`: CLI demo prints graph sections.
 - `cli_diff_outputs_context_difference`: CLI diff prints context-based graph differences.
 - `cli_evidence_outputs_normalized_summary`: CLI evidence prints normalized evidence summary and records.
@@ -124,6 +127,7 @@
 - `cli_invalidate_outputs_invalidation_plan`: CLI invalidate prints impacted graph snapshots and invalidation reasons.
 - `cli_impact_outputs_advisory_findings`: CLI impact prints advisory findings.
 - `cli_policy_outputs_policy_violations`: CLI policy prints compliance status and policy violations.
+- `cli_persist_writes_file_store_snapshot`: CLI persist writes a durable file-store snapshot and index.
 - `cli_report_outputs_remediation_markdown`: CLI report prints remediation Markdown.
 - `cli_sbom_outputs_cyclonedx_view`: CLI sbom prints a CycloneDX-style view.
 - `cli_sla_outputs_risk_summary`: CLI sla prints advisory and policy risk summary JSON.

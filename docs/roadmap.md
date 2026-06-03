@@ -61,7 +61,8 @@ Status: MVP implemented with in-memory control-plane primitives.
 - Add resolver work queue and stateless resolver worker service.
   Implemented through `ResolverWorkQueue` and `ResolverService`.
 - Add durable evidence store and immutable graph snapshot store.
-  MVP in-memory graph store is implemented; durable storage remains follow-up.
+  MVP in-memory graph store and dependency-free durable file snapshot store are
+  implemented; production SQLite/RocksDB adapters remain follow-up.
 - Add graph closure cache and reverse-dependency indexes.
   MVP query APIs compute closure and reverse dependencies from snapshots.
 - Add incremental invalidation based on repository/advisory/package changes.

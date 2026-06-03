@@ -11,6 +11,7 @@ pub mod query;
 pub mod repository;
 pub mod resolver;
 pub mod snapshot;
+pub mod storage;
 
 pub use advisory::{Advisory, AdvisorySeverity, ImpactFinding, ImpactReport, VexStatus};
 pub use demo::{demo_advisories, demo_policy_set, demo_repository};
@@ -45,3 +46,4 @@ pub use resolver::{
     VersionMultiplicity,
 };
 pub use snapshot::GraphSnapshot;
+pub use storage::{FileGraphStore, StoredSnapshotRecord};

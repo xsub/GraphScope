@@ -1,8 +1,8 @@
 use graphscope::{
-    ChangeEvent, CycloneDxView, EvidenceSubject, GraphDiff, GraphQuery, GraphSnapshot,
-    ImpactReport, InMemoryGraphStore, RemediationReport, Resolver, ResolverJob, ResolverService,
-    SlaSummary, SpdxView, VexView, demo_advisories, demo_policy_set, demo_repository,
-    parse_evidence,
+    ChangeEvent, CycloneDxView, EvidenceSubject, FileGraphStore, GraphDiff, GraphQuery,
+    GraphSnapshot, ImpactReport, InMemoryGraphStore, RemediationReport, Resolver, ResolverJob,
+    ResolverService, SlaSummary, SpdxView, VexView, demo_advisories, demo_policy_set,
+    demo_repository, parse_evidence,
 };
 
 fn main() {
@@ -21,6 +21,7 @@ fn main() {
         "sla" => print_sla(),
         "invalidate" => print_invalidation(),
         "evidence" => print_evidence(args.get(2).map(String::as_str)),
+        "persist" => persist_demo(args.get(2).map(String::as_str)),
         "explain" => print_explain(),
         "diff" => print_diff(),
         "help" | "--help" | "-h" => print_help(),
@@ -47,6 +48,7 @@ fn print_help() {
     println!("  graphscope sla   print an SLA-style risk summary");
     println!("  graphscope invalidate   plan graph invalidation from metadata changes");
     println!("  graphscope evidence <path>   normalize a manifest, lockfile, or inventory");
+    println!("  graphscope persist <dir>   persist the demo graph snapshot to a file store");
     println!("  graphscope explain   explain why urllib3 is present in the demo graph");
     println!("  graphscope diff   compare demo graph with and without optional GPU context");
     println!("  graphscope help   show this help");
@@ -346,6 +348,38 @@ fn subject_summary(subject: &EvidenceSubject) -> String {
         }
         EvidenceSubject::Context(context) => format!("context {context}"),
     }
+}
+
+fn persist_demo(root: Option<&str>) {
+    let Some(root) = root else {
+        eprintln!("missing storage directory");
+        print_help();
+        std::process::exit(2);
+    };
+    let (repository, roots, context) = demo_repository();
+    let record = ResolverService::new(repository).process(ResolverJob::new(
+        "customer-a",
+        "tuxcare-demo",
+        roots,
+        context,
+        env!("CARGO_PKG_VERSION"),
+    ));
+    let store = FileGraphStore::new(root).unwrap_or_else(|error| {
+        eprintln!("failed to initialize store {root}: {error}");
+        std::process::exit(2);
+    });
+    let stored = store.persist_record(&record).unwrap_or_else(|error| {
+        eprintln!("failed to persist snapshot: {error}");
+        std::process::exit(2);
+    });
+
+    println!("Persisted snapshot");
+    println!("Store: {}", store.root().display());
+    println!("Tenant: {}", stored.tenant);
+    println!("Product: {}", stored.product);
+    println!("Context: {}", stored.context_hash);
+    println!("Snapshot: {}", stored.snapshot_id);
+    println!("Path: {}", stored.snapshot_path.display());
 }
 
 fn print_explain() {
