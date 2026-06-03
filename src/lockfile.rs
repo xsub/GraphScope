@@ -360,6 +360,51 @@ pub fn parse_rpm_inventory(
     Ok(catalog)
 }
 
+pub fn parse_cyclonedx_sbom(
+    input: &str,
+    locator: impl Into<String>,
+) -> Result<EvidenceCatalog, LockfileParseError> {
+    let locator = locator.into();
+    if !input.contains("\"CycloneDX\"") {
+        return Err(LockfileParseError::new(
+            1,
+            "expected CycloneDX SBOM with bomFormat",
+        ));
+    }
+    let source = EvidenceSource::new(EvidenceKind::Sbom, None, locator);
+    let mut catalog = EvidenceCatalog::new();
+    let components = extract_json_array(input, "components")
+        .ok_or_else(|| LockfileParseError::new(1, "CycloneDX SBOM is missing components array"))?;
+
+    for object in extract_json_objects(&components) {
+        let name = json_string_field(&object, "name")
+            .ok_or_else(|| LockfileParseError::new(1, "CycloneDX component missing name"))?;
+        let purl = json_string_field(&object, "purl");
+        let version = json_string_field(&object, "version")
+            .or_else(|| purl.as_deref().and_then(version_from_purl))
+            .ok_or_else(|| LockfileParseError::new(1, "CycloneDX component missing version"))?;
+        let package_id = purl
+            .as_deref()
+            .and_then(|purl| package_id_from_purl(purl, &name))
+            .unwrap_or_else(|| {
+                PackageId::new(
+                    Ecosystem::Other("cyclonedx".to_string()),
+                    None::<String>,
+                    name.clone(),
+                )
+            });
+        let package = PackageRef::new(package_id.clone(), Version::parse(version.clone()));
+        catalog.add(EvidenceRecord::package(
+            source.clone(),
+            package,
+            EvidenceConfidence::Resolved,
+            format!("CycloneDX component: {package_id}@{version}"),
+        ));
+    }
+
+    Ok(catalog)
+}
+
 #[derive(Default)]
 struct CargoPackageBlock {
     name: Option<String>,
@@ -583,6 +628,164 @@ fn strip_rpm_arch(value: &str) -> &str {
         }
     }
     value
+}
+
+fn extract_json_array(input: &str, field: &str) -> Option<String> {
+    let pattern = format!("\"{field}\"");
+    let field_start = input.find(&pattern)?;
+    let rest = &input[field_start + pattern.len()..];
+    let array_offset = rest.find('[')?;
+    let array_start = field_start + pattern.len() + array_offset;
+    extract_balanced(input, array_start, '[', ']')
+        .map(|array| array[1..array.len() - 1].to_string())
+}
+
+fn extract_json_objects(input: &str) -> Vec<String> {
+    let mut objects = Vec::new();
+    let mut search_start = 0;
+    while let Some(relative_start) = input[search_start..].find('{') {
+        let start = search_start + relative_start;
+        let Some(object) = extract_balanced(input, start, '{', '}') else {
+            break;
+        };
+        search_start = start + object.len();
+        objects.push(object);
+    }
+    objects
+}
+
+fn extract_balanced(input: &str, start: usize, open: char, close: char) -> Option<String> {
+    let mut depth = 0usize;
+    let mut in_string = false;
+    let mut escaped = false;
+
+    for (offset, ch) in input[start..].char_indices() {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if ch == '\\' {
+                escaped = true;
+            } else if ch == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+
+        if ch == '"' {
+            in_string = true;
+        } else if ch == open {
+            depth += 1;
+        } else if ch == close {
+            depth = depth.saturating_sub(1);
+            if depth == 0 {
+                let end = start + offset + ch.len_utf8();
+                return Some(input[start..end].to_string());
+            }
+        }
+    }
+
+    None
+}
+
+fn json_string_field(input: &str, field: &str) -> Option<String> {
+    let pattern = format!("\"{field}\"");
+    let (_, rest) = input.split_once(&pattern)?;
+    let rest = rest.trim_start();
+    let rest = rest.strip_prefix(':')?.trim_start();
+    read_json_string(rest)
+}
+
+fn read_json_string(input: &str) -> Option<String> {
+    let mut chars = input.chars();
+    if chars.next()? != '"' {
+        return None;
+    }
+    let mut value = String::new();
+    let mut escaped = false;
+    for ch in chars {
+        if escaped {
+            match ch {
+                '"' => value.push('"'),
+                '\\' => value.push('\\'),
+                '/' => value.push('/'),
+                'n' => value.push('\n'),
+                'r' => value.push('\r'),
+                't' => value.push('\t'),
+                other => value.push(other),
+            }
+            escaped = false;
+        } else if ch == '\\' {
+            escaped = true;
+        } else if ch == '"' {
+            return Some(value);
+        } else {
+            value.push(ch);
+        }
+    }
+    None
+}
+
+fn version_from_purl(purl: &str) -> Option<String> {
+    let base = purl.strip_prefix("pkg:")?.split('?').next()?;
+    let (_, version) = base.rsplit_once('@')?;
+    (!version.is_empty()).then(|| percent_decode(version))
+}
+
+fn package_id_from_purl(purl: &str, fallback_name: &str) -> Option<PackageId> {
+    let base = purl.strip_prefix("pkg:")?.split('?').next()?;
+    let (coordinates, _) = base.rsplit_once('@').unwrap_or((base, ""));
+    let (ecosystem, path) = coordinates.split_once('/')?;
+    let path = percent_decode(path);
+    match ecosystem {
+        "pypi" => Some(PackageId::python(
+            path.rsplit('/').next().unwrap_or(fallback_name),
+        )),
+        "npm" => npm_package_from_purl(&path),
+        "maven" => {
+            let (group, artifact) = path.rsplit_once('/')?;
+            Some(PackageId::maven(group.replace('/', "."), artifact))
+        }
+        "golang" => Some(PackageId::go(path)),
+        "cargo" => Some(PackageId::cargo(
+            path.rsplit('/').next().unwrap_or(fallback_name),
+        )),
+        "rpm" => Some(PackageId::rpm(
+            path.rsplit('/').next().unwrap_or(fallback_name),
+        )),
+        other => Some(PackageId::new(
+            Ecosystem::Other(other.to_string()),
+            None::<String>,
+            fallback_name.to_string(),
+        )),
+    }
+}
+
+fn npm_package_from_purl(path: &str) -> Option<PackageId> {
+    if let Some(scoped) = path.strip_prefix('@') {
+        let (scope, name) = scoped.split_once('/')?;
+        return Some(PackageId::npm(Some(scope.to_string()), name));
+    }
+    Some(PackageId::npm(None::<String>, path.to_string()))
+}
+
+fn percent_decode(value: &str) -> String {
+    let bytes = value.as_bytes();
+    let mut decoded = Vec::new();
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%'
+            && index + 2 < bytes.len()
+            && let Ok(hex) = std::str::from_utf8(&bytes[index + 1..index + 3])
+            && let Ok(byte) = u8::from_str_radix(hex, 16)
+        {
+            decoded.push(byte);
+            index += 3;
+        } else {
+            decoded.push(bytes[index]);
+            index += 1;
+        }
+    }
+    String::from_utf8(decoded).unwrap_or_else(|_| value.to_string())
 }
 
 #[cfg(test)]
@@ -816,6 +1019,43 @@ mod tests {
             .count();
         assert_eq!(observed, 2);
         assert_eq!(catalog.by_package(&PackageId::rpm("openssl-libs")).len(), 1);
+    }
+
+    #[test]
+    fn parses_cyclonedx_sbom_components() {
+        let catalog = parse_cyclonedx_sbom(
+            r#"
+            {
+              "bomFormat": "CycloneDX",
+              "components": [
+                {
+                  "type": "library",
+                  "name": "urllib3",
+                  "version": "2.2.2",
+                  "purl": "pkg:pypi/urllib3@2.2.2"
+                },
+                {
+                  "type": "library",
+                  "name": "@cloudlinux/theme",
+                  "version": "5.1.0",
+                  "purl": "pkg:npm/%40cloudlinux/theme@5.1.0"
+                }
+              ]
+            }
+            "#,
+            "bom.json",
+        )
+        .unwrap();
+
+        assert_eq!(catalog.records().len(), 2);
+        assert_eq!(catalog.by_package(&PackageId::python("urllib3")).len(), 1);
+        assert_eq!(
+            catalog
+                .by_package(&PackageId::npm(Some("cloudlinux".to_string()), "theme"))
+                .len(),
+            1
+        );
+        assert_eq!(catalog.summary().by_kind["Sbom"], 2);
     }
 
     #[test]

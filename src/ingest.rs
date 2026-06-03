@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::evidence::EvidenceCatalog;
 use crate::lockfile::{
-    LockfileParseError, parse_cargo_lock_packages, parse_go_mod_requirements,
+    LockfileParseError, parse_cargo_lock_packages, parse_cyclonedx_sbom, parse_go_mod_requirements,
     parse_gradle_dependencies, parse_maven_pom_dependencies, parse_npm_package_lock,
     parse_pip_requirements_lock, parse_rpm_inventory,
 };
@@ -17,6 +17,7 @@ pub enum EvidenceFormat {
     MavenPom,
     GradleBuild,
     RpmInventory,
+    CycloneDxSbom,
 }
 
 impl fmt::Display for EvidenceFormat {
@@ -29,6 +30,7 @@ impl fmt::Display for EvidenceFormat {
             EvidenceFormat::MavenPom => write!(f, "Maven POM"),
             EvidenceFormat::GradleBuild => write!(f, "Gradle build"),
             EvidenceFormat::RpmInventory => write!(f, "RPM inventory"),
+            EvidenceFormat::CycloneDxSbom => write!(f, "CycloneDX SBOM"),
         }
     }
 }
@@ -49,9 +51,11 @@ impl EvidenceFormat {
             "pom.xml" => Some(Self::MavenPom),
             "build.gradle" | "build.gradle.kts" => Some(Self::GradleBuild),
             "rpm-qa.txt" | "rpm-inventory.txt" | "rpm-list.txt" => Some(Self::RpmInventory),
+            "bom.json" | "cyclonedx.json" => Some(Self::CycloneDxSbom),
             _ if file_name.contains("rpm") && file_name.ends_with(".list") => {
                 Some(Self::RpmInventory)
             }
+            _ if file_name.ends_with(".cdx.json") => Some(Self::CycloneDxSbom),
             _ => None,
         }
     }
@@ -78,6 +82,9 @@ impl EvidenceFormat {
             }
             EvidenceFormat::RpmInventory => {
                 parse_with(locator, || parse_rpm_inventory(input, locator))
+            }
+            EvidenceFormat::CycloneDxSbom => {
+                parse_with(locator, || parse_cyclonedx_sbom(input, locator))
             }
         }
     }
@@ -112,7 +119,7 @@ pub fn parse_evidence(
     let format = EvidenceFormat::detect(&locator).ok_or_else(|| {
         IngestError::new(
             locator.clone(),
-            "unsupported evidence format; expected requirements.txt, go.mod, Cargo.lock, package-lock.json, pom.xml, build.gradle, or rpm-qa.txt",
+            "unsupported evidence format; expected requirements.txt, go.mod, Cargo.lock, package-lock.json, pom.xml, build.gradle, rpm-qa.txt, or bom.json",
         )
     })?;
     format.parse(input, &locator)
@@ -161,6 +168,10 @@ mod tests {
             EvidenceFormat::detect("customer-rpm.list"),
             Some(EvidenceFormat::RpmInventory)
         );
+        assert_eq!(
+            EvidenceFormat::detect("sbom/app.cdx.json"),
+            Some(EvidenceFormat::CycloneDxSbom)
+        );
     }
 
     #[test]
@@ -191,5 +202,17 @@ mod tests {
         let error = parse_evidence("name = demo", "pyproject.toml").unwrap_err();
 
         assert!(error.message.contains("unsupported evidence format"));
+    }
+
+    #[test]
+    fn parse_evidence_dispatches_cyclonedx_sbom() {
+        let catalog = parse_evidence(
+            r#"{"bomFormat":"CycloneDX","components":[{"name":"urllib3","version":"2.2.2","purl":"pkg:pypi/urllib3@2.2.2"}]}"#,
+            "bom.json",
+        )
+        .unwrap();
+
+        assert_eq!(catalog.summary().package_records, 1);
+        assert_eq!(catalog.by_package(&PackageId::python("urllib3")).len(), 1);
     }
 }

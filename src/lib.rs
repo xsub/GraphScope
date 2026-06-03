@@ -24,9 +24,9 @@ pub use evidence::{
 pub use export::{CycloneDxView, RemediationReport, RiskDashboard, SlaSummary, SpdxView, VexView};
 pub use ingest::{EvidenceFormat, IngestError, parse_evidence};
 pub use lockfile::{
-    parse_cargo_lock_packages, parse_go_mod_requirements, parse_gradle_dependencies,
-    parse_maven_pom_dependencies, parse_npm_package_lock, parse_pip_requirements_lock,
-    parse_rpm_inventory,
+    parse_cargo_lock_packages, parse_cyclonedx_sbom, parse_go_mod_requirements,
+    parse_gradle_dependencies, parse_maven_pom_dependencies, parse_npm_package_lock,
+    parse_pip_requirements_lock, parse_rpm_inventory,
 };
 pub use model::{
     Architecture, ArtifactMetadata, BuildProfile, ContextPredicate, DependencyRelation,

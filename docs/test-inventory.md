@@ -30,9 +30,11 @@
 - `export::tests::spdx_view_exports_packages_and_relationships`: SPDX view exports packages and dependency relationships.
 - `export::tests::vex_view_exports_affected_and_unaffected_statements`: VEX view exports affected and not-affected statements.
 - `ingest::tests::detects_supported_evidence_formats`: Ingestion detects supported evidence formats from locators.
+- `ingest::tests::parse_evidence_dispatches_cyclonedx_sbom`: Ingestion dispatch parses CycloneDX SBOM evidence.
 - `ingest::tests::parse_evidence_dispatches_npm_package_lock`: Ingestion dispatch parses npm package-lock evidence.
 - `ingest::tests::parse_evidence_rejects_unknown_format`: Ingestion dispatch rejects unsupported evidence formats.
 - `lockfile::tests::parses_cargo_lock_package_blocks`: Cargo.lock parser emits locked crate evidence.
+- `lockfile::tests::parses_cyclonedx_sbom_components`: CycloneDX SBOM parser emits resolved component evidence.
 - `lockfile::tests::parses_gradle_dependency_declarations`: Gradle parser emits declared dependency evidence.
 - `lockfile::tests::parses_go_mod_single_and_block_requirements`: Go module parser emits locked module evidence from single-line and block requirements.
 - `lockfile::tests::parses_maven_pom_declared_dependencies`: Maven POM parser emits declared dependency evidence.
@@ -149,6 +151,7 @@
 - `cli_spdx_outputs_spdx_view`: CLI spdx prints an SPDX-style view.
 - `cli_vex_outputs_status_statements`: CLI vex prints affected and not-affected status statements.
 - `fixture_cargo_lock_parses_locked_crates`: Cargo fixture parses locked crate evidence.
+- `fixture_cyclonedx_sbom_parses_components`: CycloneDX SBOM fixture parses component evidence.
 - `fixture_gradle_build_parses_declared_dependencies`: Gradle fixture parses declared dependency evidence.
 - `fixture_go_mod_parses_locked_modules`: Go fixture parses locked module evidence.
 - `fixture_maven_pom_parses_declared_dependencies`: Maven fixture parses declared dependency evidence.
@@ -157,6 +160,7 @@
 - `fixture_rpm_inventory_parses_observed_packages`: RPM fixture parses observed package evidence.
 - `public_api_can_build_and_resolve_custom_repository`: Public API builds and resolves a custom repository.
 - `public_api_auto_parses_maven_pom_fixture`: Public API auto-detects and parses a Maven POM fixture.
+- `public_api_auto_parses_cyclonedx_sbom_fixture`: Public API auto-detects and parses a CycloneDX SBOM fixture.
 - `public_api_auto_parses_rpm_inventory_fixture`: Public API auto-detects and parses an RPM inventory fixture.
 - `public_api_creates_stable_snapshot_from_resolved_graph`: Public API creates a stable graph snapshot from a resolved graph.
 - `public_api_exposes_skipped_dependency_reason`: Public API exposes skipped dependency reasons.

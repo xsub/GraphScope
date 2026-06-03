@@ -11,3 +11,4 @@ stable contract future native adapters should emit.
 - `maven/pom.xml`: Maven dependency declarations with compile, runtime, and test scope.
 - `gradle/build.gradle`: Gradle dependency configurations using string notation.
 - `rpm/rpm-qa.txt`: RPM runtime inventory lines in query and NEVRA-like forms.
+- `sbom/cyclonedx.json`: CycloneDX component inventory with purl identities.

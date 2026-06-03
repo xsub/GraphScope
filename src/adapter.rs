@@ -16,6 +16,7 @@ pub enum AdapterCapability {
     MinimalVersionSelection,
     RepositoryContext,
     StableEvidence,
+    SbomNormalization,
 }
 
 impl fmt::Display for AdapterCapability {
@@ -32,6 +33,7 @@ impl fmt::Display for AdapterCapability {
             Self::MinimalVersionSelection => write!(f, "minimal version selection"),
             Self::RepositoryContext => write!(f, "repository context"),
             Self::StableEvidence => write!(f, "stable evidence"),
+            Self::SbomNormalization => write!(f, "SBOM normalization"),
         }
     }
 }
@@ -57,6 +59,16 @@ impl AdapterProfile {
 
 pub fn adapter_profiles() -> Vec<AdapterProfile> {
     let mut profiles = vec![
+        AdapterProfile {
+            ecosystem: Ecosystem::Other("sbom".to_string()),
+            package_manager: "CycloneDX",
+            evidence_formats: vec![EvidenceFormat::CycloneDxSbom],
+            capabilities: vec![
+                AdapterCapability::SbomNormalization,
+                AdapterCapability::StableEvidence,
+            ],
+            production_gaps: vec!["full CycloneDX dependency graph and vulnerability extensions"],
+        },
         AdapterProfile {
             ecosystem: Ecosystem::Rpm,
             package_manager: "DNF/RPM",
@@ -174,6 +186,7 @@ mod tests {
             EvidenceFormat::MavenPom,
             EvidenceFormat::GradleBuild,
             EvidenceFormat::RpmInventory,
+            EvidenceFormat::CycloneDxSbom,
         ] {
             assert!(
                 profiles

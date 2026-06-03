@@ -21,8 +21,8 @@ Status: MVP implemented; production ecosystem adapters remain follow-up work.
 - Add manifest, lockfile, inventory parsers and normalized evidence records.
   Initial pip pinned requirements, Go module requirements, Cargo.lock package
   parsing, npm package-lock parsing, Maven dependency parsing, Gradle dependency
-  parsing, RPM inventory parsing, and normalized evidence catalog are
-  implemented.
+  parsing, RPM inventory parsing, CycloneDX SBOM component parsing, and
+  normalized evidence catalog are implemented.
 - Add auto-detecting evidence ingestion workflow for supported fixture formats.
   Implemented through `parse_evidence` and `graphscope evidence <path>`.
 - Add executable adapter coverage matrix for supported ecosystems.

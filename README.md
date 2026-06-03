@@ -20,6 +20,7 @@
 ![Cargo](https://img.shields.io/badge/Cargo-modeled-orange?logo=rust)
 ![Adapter Matrix](https://img.shields.io/badge/adapter%20matrix-executable-0969da)
 ![CycloneDX](https://img.shields.io/badge/CycloneDX-1.6-0b7)
+![CycloneDX Ingest](https://img.shields.io/badge/CycloneDX-ingest-0b7)
 ![SPDX](https://img.shields.io/badge/SPDX-2.3-4398d1)
 ![VEX](https://img.shields.io/badge/VEX-export-6f42c1)
 ![Policy Engine](https://img.shields.io/badge/policy-engine-d73a49)
@@ -29,7 +30,7 @@
 ![File Store](https://img.shields.io/badge/file%20store-durable%20MVP-0a7)
 ![Event Log](https://img.shields.io/badge/event%20log-durable%20MVP-7952b3)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-168%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-172%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Dependency Free](https://img.shields.io/badge/runtime%20deps-0-success)
 
@@ -71,7 +72,8 @@ package:
 - context-aware resolver with ecosystem-specific version selection policy,
 - normalized evidence records plus parser coverage for pip requirements, Go
   modules, Cargo.lock, npm package-lock, Maven POM dependencies, Gradle
-  dependency declarations, and RPM runtime inventories,
+  dependency declarations, RPM runtime inventories, and CycloneDX SBOM
+  components,
 - auto-detecting evidence ingestion workflow for manifests, lockfiles, and RPM
   inventories,
 - executable adapter coverage matrix for RPM, Python, Maven, Gradle, npm, Go,
@@ -116,6 +118,7 @@ cargo run -- sla
 cargo run -- dashboard
 cargo run -- invalidate
 cargo run -- evidence tests/fixtures/npm/package-lock.json
+cargo run -- evidence tests/fixtures/sbom/cyclonedx.json
 cargo run -- adapters
 cargo run -- access
 cargo run -- persist /tmp/graphscope-store

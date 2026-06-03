@@ -3,9 +3,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use graphscope::{
     DependencyRequirement, Ecosystem, EvidenceConfidence, GraphSnapshot, PackageId, PackageVersion,
-    Resolver, VersionRequirement, demo_repository, parse_cargo_lock_packages, parse_evidence,
-    parse_go_mod_requirements, parse_gradle_dependencies, parse_maven_pom_dependencies,
-    parse_npm_package_lock, parse_pip_requirements_lock, parse_rpm_inventory,
+    Resolver, VersionRequirement, demo_repository, parse_cargo_lock_packages, parse_cyclonedx_sbom,
+    parse_evidence, parse_go_mod_requirements, parse_gradle_dependencies,
+    parse_maven_pom_dependencies, parse_npm_package_lock, parse_pip_requirements_lock,
+    parse_rpm_inventory,
 };
 
 #[test]
@@ -485,6 +486,24 @@ fn fixture_rpm_inventory_parses_observed_packages() {
 }
 
 #[test]
+fn fixture_cyclonedx_sbom_parses_components() {
+    let input = include_str!("fixtures/sbom/cyclonedx.json");
+    let catalog = parse_cyclonedx_sbom(input, "tests/fixtures/sbom/cyclonedx.json").unwrap();
+
+    assert_eq!(catalog.summary().package_records, 3);
+    assert_eq!(catalog.by_package(&PackageId::python("urllib3")).len(), 1);
+    assert_eq!(
+        catalog
+            .by_package(&PackageId::maven(
+                "com.fasterxml.jackson.core",
+                "jackson-databind"
+            ))
+            .len(),
+        1
+    );
+}
+
+#[test]
 fn public_api_auto_parses_maven_pom_fixture() {
     let input = include_str!("fixtures/maven/pom.xml");
     let catalog = parse_evidence(input, "tests/fixtures/maven/pom.xml").unwrap();
@@ -507,6 +526,20 @@ fn public_api_auto_parses_rpm_inventory_fixture() {
     assert_eq!(
         catalog
             .by_package(&PackageId::rpm("kernelcare-agent"))
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn public_api_auto_parses_cyclonedx_sbom_fixture() {
+    let input = include_str!("fixtures/sbom/cyclonedx.json");
+    let catalog = parse_evidence(input, "tests/fixtures/sbom/cyclonedx.json").unwrap();
+
+    assert_eq!(catalog.summary().by_kind["Sbom"], 3);
+    assert_eq!(
+        catalog
+            .by_package(&PackageId::npm(Some("cloudlinux".to_string()), "theme"))
             .len(),
         1
     );

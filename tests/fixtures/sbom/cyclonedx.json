@@ -1,0 +1,24 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "components": [
+    {
+      "type": "library",
+      "name": "urllib3",
+      "version": "2.2.2",
+      "purl": "pkg:pypi/urllib3@2.2.2"
+    },
+    {
+      "type": "library",
+      "name": "@cloudlinux/theme",
+      "version": "5.1.0",
+      "purl": "pkg:npm/%40cloudlinux/theme@5.1.0"
+    },
+    {
+      "type": "library",
+      "name": "jackson-databind",
+      "version": "2.17.1",
+      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.17.1"
+    }
+  ]
+}
