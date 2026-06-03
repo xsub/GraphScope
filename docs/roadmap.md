@@ -16,10 +16,13 @@ Status: implemented in this repository.
 Status: MVP implemented; production ecosystem adapters remain follow-up work.
 
 - Build fixture corpus for RPM, pip, Poetry, Maven, Gradle, npm, Go, and Cargo.
-  Initial pip, Go, and Cargo fixtures are implemented.
-- Add lockfile parsers and normalized evidence records.
+  Initial RPM inventory, pip, Maven POM, Gradle, npm package-lock, Go, and Cargo
+  fixtures are implemented.
+- Add manifest, lockfile, inventory parsers and normalized evidence records.
   Initial pip pinned requirements, Go module requirements, Cargo.lock package
-  parsing, and normalized evidence catalog are implemented.
+  parsing, npm package-lock parsing, Maven dependency parsing, Gradle dependency
+  parsing, RPM inventory parsing, and normalized evidence catalog are
+  implemented.
 - Integrate libsolv or DNF metadata for RPM resolution.
 - Add Maven effective-POM and Gradle dependency insight ingestion.
 - Add npm package-lock and peer dependency propagation.

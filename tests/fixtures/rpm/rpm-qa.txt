@@ -1,0 +1,3 @@
+kernelcare-agent 3.1.4-1.el9.x86_64
+openssl-libs-3.2.2-1.el9.x86_64
+tuxcare-els-release-9.0-1.el9.noarch

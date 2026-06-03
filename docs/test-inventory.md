@@ -24,9 +24,15 @@
 - `export::tests::spdx_view_exports_packages_and_relationships`: SPDX view exports packages and dependency relationships.
 - `export::tests::vex_view_exports_affected_and_unaffected_statements`: VEX view exports affected and not-affected statements.
 - `lockfile::tests::parses_cargo_lock_package_blocks`: Cargo.lock parser emits locked crate evidence.
+- `lockfile::tests::parses_gradle_dependency_declarations`: Gradle parser emits declared dependency evidence.
 - `lockfile::tests::parses_go_mod_single_and_block_requirements`: Go module parser emits locked module evidence from single-line and block requirements.
+- `lockfile::tests::parses_maven_pom_declared_dependencies`: Maven POM parser emits declared dependency evidence.
+- `lockfile::tests::parses_npm_package_lock_packages`: npm package-lock parser emits locked package evidence.
 - `lockfile::tests::parses_pip_pinned_requirements_as_locked_evidence`: pip requirements parser emits locked package evidence.
+- `lockfile::tests::parses_rpm_inventory_observed_packages`: RPM inventory parser emits observed package evidence.
 - `lockfile::tests::rejects_cargo_lock_package_without_version`: Cargo.lock parser rejects incomplete package blocks.
+- `lockfile::tests::rejects_maven_dependency_without_coordinates`: Maven POM parser rejects dependency blocks without required coordinates.
+- `lockfile::tests::rejects_rpm_inventory_without_version`: RPM inventory parser rejects package lines without versions.
 - `lockfile::tests::rejects_unpinned_pip_requirement_lines`: pip requirements parser rejects unpinned requirements.
 - `model::tests::any_context_predicates_match_specific_context_values`: Wildcard OS, distro, and architecture predicates match concrete context values.
 - `model::tests::caret_requirement_matches_semver_compatible_versions`: Caret ranges accept compatible semver versions.
@@ -120,8 +126,12 @@
 - `cli_spdx_outputs_spdx_view`: CLI spdx prints an SPDX-style view.
 - `cli_vex_outputs_status_statements`: CLI vex prints affected and not-affected status statements.
 - `fixture_cargo_lock_parses_locked_crates`: Cargo fixture parses locked crate evidence.
+- `fixture_gradle_build_parses_declared_dependencies`: Gradle fixture parses declared dependency evidence.
 - `fixture_go_mod_parses_locked_modules`: Go fixture parses locked module evidence.
+- `fixture_maven_pom_parses_declared_dependencies`: Maven fixture parses declared dependency evidence.
+- `fixture_npm_package_lock_parses_locked_packages`: npm fixture parses locked package evidence.
 - `fixture_pip_lockfile_parses_locked_packages`: pip fixture parses locked package evidence.
+- `fixture_rpm_inventory_parses_observed_packages`: RPM fixture parses observed package evidence.
 - `public_api_can_build_and_resolve_custom_repository`: Public API builds and resolves a custom repository.
 - `public_api_creates_stable_snapshot_from_resolved_graph`: Public API creates a stable graph snapshot from a resolved graph.
 - `public_api_exposes_skipped_dependency_reason`: Public API exposes skipped dependency reasons.

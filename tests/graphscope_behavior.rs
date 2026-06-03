@@ -1,9 +1,10 @@
 use std::process::Command;
 
 use graphscope::{
-    DependencyRequirement, GraphSnapshot, PackageId, PackageVersion, Resolver, VersionRequirement,
-    demo_repository, parse_cargo_lock_packages, parse_go_mod_requirements,
-    parse_pip_requirements_lock,
+    DependencyRequirement, Ecosystem, EvidenceConfidence, GraphSnapshot, PackageId, PackageVersion,
+    Resolver, VersionRequirement, demo_repository, parse_cargo_lock_packages,
+    parse_go_mod_requirements, parse_gradle_dependencies, parse_maven_pom_dependencies,
+    parse_npm_package_lock, parse_pip_requirements_lock, parse_rpm_inventory,
 };
 
 #[test]
@@ -296,6 +297,75 @@ fn fixture_cargo_lock_parses_locked_crates() {
         catalog.locked_packages()[0].id,
         PackageId::cargo("petgraph")
     );
+}
+
+#[test]
+fn fixture_npm_package_lock_parses_locked_packages() {
+    let input = include_str!("fixtures/npm/package-lock.json");
+    let catalog = parse_npm_package_lock(input, "tests/fixtures/npm/package-lock.json").unwrap();
+
+    assert_eq!(catalog.locked_packages().len(), 3);
+    assert!(
+        catalog
+            .locked_packages()
+            .iter()
+            .any(|package| package.id == PackageId::npm(None::<String>, "react"))
+    );
+    assert!(
+        catalog.locked_packages().iter().any(|package| {
+            package.id == PackageId::npm(Some("cloudlinux".to_string()), "theme")
+        })
+    );
+}
+
+#[test]
+fn fixture_maven_pom_parses_declared_dependencies() {
+    let input = include_str!("fixtures/maven/pom.xml");
+    let catalog = parse_maven_pom_dependencies(input, "tests/fixtures/maven/pom.xml").unwrap();
+
+    assert_eq!(catalog.records().len(), 3);
+    assert_eq!(
+        catalog
+            .by_package(&PackageId::maven(
+                "com.fasterxml.jackson.core",
+                "jackson-databind"
+            ))
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn fixture_gradle_build_parses_declared_dependencies() {
+    let input = include_str!("fixtures/gradle/build.gradle");
+    let catalog = parse_gradle_dependencies(input, "tests/fixtures/gradle/build.gradle").unwrap();
+
+    assert_eq!(catalog.records().len(), 3);
+    assert_eq!(
+        catalog
+            .by_package(&PackageId::new(
+                Ecosystem::Gradle,
+                Some("org.slf4j".to_string()),
+                "slf4j-api"
+            ))
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn fixture_rpm_inventory_parses_observed_packages() {
+    let input = include_str!("fixtures/rpm/rpm-qa.txt");
+    let catalog = parse_rpm_inventory(input, "tests/fixtures/rpm/rpm-qa.txt").unwrap();
+
+    assert_eq!(catalog.records().len(), 3);
+    assert!(
+        catalog
+            .records()
+            .iter()
+            .all(|record| record.confidence == EvidenceConfidence::Observed)
+    );
+    assert_eq!(catalog.by_package(&PackageId::rpm("openssl-libs")).len(), 1);
 }
 
 #[test]

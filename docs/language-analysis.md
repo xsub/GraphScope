@@ -159,6 +159,13 @@ Official references:
 
 ## Cross-Ecosystem Requirements
 
+The MVP fixture corpus now includes parser-level evidence coverage for pinned
+pip requirements, Go module requirements, Cargo.lock package blocks, npm
+package-lock packages, Maven POM dependency declarations, Gradle dependency
+notations, and RPM runtime inventory lines. These fixtures validate normalized
+evidence output; full package-manager-native resolution remains the production
+adapter target.
+
 The first production release should include conformance fixtures for:
 
 - RPM weak dependencies, file provides, module streams, and architecture filters;

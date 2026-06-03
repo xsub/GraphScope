@@ -29,6 +29,10 @@ Accepts source projects, manifests, lockfiles, container images, RPM repositorie
 host package inventories, SBOMs, VEX documents, advisories, and runtime package
 facts. It records immutable raw evidence and emits normalized evidence events.
 
+The MVP includes parser-level normalized evidence for pip requirements, Go
+modules, Cargo.lock, npm package-lock, Maven POM dependencies, Gradle dependency
+declarations, and RPM runtime inventories.
+
 ### Evidence Store
 
 Stores raw input and parsed facts. Raw evidence remains available so every graph

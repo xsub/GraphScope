@@ -25,7 +25,7 @@
 ![SLA Summary](https://img.shields.io/badge/SLA-summary-0969da)
 ![Invalidation Planner](https://img.shields.io/badge/invalidation-planner-8250df)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-133%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-143%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Dependency Free](https://img.shields.io/badge/runtime%20deps-0-success)
 
@@ -65,7 +65,9 @@ package:
 
 - universal package, version, scope, condition, and provenance model,
 - context-aware resolver with ecosystem-specific version selection policy,
-- normalized evidence records and lockfile evidence parsers,
+- normalized evidence records plus parser coverage for pip requirements, Go
+  modules, Cargo.lock, npm package-lock, Maven POM dependencies, Gradle
+  dependency declarations, and RPM runtime inventories,
 - transitive dependency graph output,
 - stable JSON graph snapshots with resolver decision traces,
 - conflict, skipped-dependency, and candidate-selection diagnostics,
@@ -81,8 +83,8 @@ package:
   remediation report exports,
 - demo dataset for a TuxCare/CloudLinux style product stack,
 - tests for version ranges, environment markers, optional features, Maven-style
-  exclusions, Go minimal-version selection, cycle handling, impact reports,
-  exports, and platform workflows,
+  exclusions, Go minimal-version selection, cycle handling, parser fixtures,
+  impact reports, exports, and platform workflows,
 - business strategy and production architecture documentation.
 
 ## Quick Start
