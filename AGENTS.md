@@ -9,5 +9,6 @@ This repository favors practical staff-engineering judgment over ceremony.
 - Go after the most important bugs, risks, and planned changes automatically.
 - Continue the active plan until it is genuinely complete or blocked.
 - Commit and push completed work early so progress is durable.
+- Pushes to configured repository remotes are user-approved by default.
 - Keep tests, docs, and CI aligned with implemented behavior.
 - Preserve CloudLinux, AlmaLinux, and TuxCare production context in design choices.
