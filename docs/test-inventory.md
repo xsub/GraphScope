@@ -169,6 +169,7 @@
 - `test_cargo_features_expose_adapter_surfaces`: Pytest verifies Cargo feature flags expose planned adapter surfaces.
 - `test_github_workflows_exist_for_readme_badges`: Pytest verifies each README workflow badge has a backing workflow file.
 - `test_demo_artifacts_are_checked_in_and_linked`: Pytest verifies demo artifacts are checked in and linked from the README.
+- `test_real_world_almalinux_inventory_is_checked_in_and_linked`: Pytest verifies real AlmaLinux inventory evidence is checked in and linked from the README.
 - `test_readme_badges_reference_ci_workflows_and_platforms`: Pytest verifies README badges cover CI workflows and platform capabilities.
 - `test_resolution_algorithm_avoids_placeholder_control_flow`: Pytest verifies the resolution algorithm avoids placeholder control-flow docs.
 - `test_resolution_algorithm_documents_usability_contract`: Pytest verifies the resolution algorithm documents the user-facing resolver contract.

@@ -100,6 +100,31 @@ def test_demo_artifacts_are_checked_in_and_linked() -> None:
     assert any((artifact_root / "durable-store" / "snapshots").glob("*.json"))
 
 
+def test_real_world_almalinux_inventory_is_checked_in_and_linked() -> None:
+    readme = read_text("README.md")
+    artifact_root = ROOT / "examples" / "real-world"
+
+    assert "examples/real-world" in readme
+    for path in [
+        "README.md",
+        "os-release.txt",
+        "dnf-repolist.txt",
+        "almalinux-10-rpm.list",
+        "almalinux-10-rpm-evidence.txt",
+    ]:
+        assert (artifact_root / path).is_file(), path
+
+    inventory = read_text("examples/real-world/almalinux-10-rpm.list")
+    evidence = read_text("examples/real-world/almalinux-10-rpm-evidence.txt")
+    os_release = read_text("examples/real-world/os-release.txt")
+
+    assert 'PRETTY_NAME="AlmaLinux 10.2 (Lavender Lion)"' in os_release
+    assert len(inventory.splitlines()) >= 100
+    assert "Records: 666" in evidence
+    assert "- rpm: 666" in evidence
+    assert "- Observed: 666" in evidence
+
+
 def test_resolution_algorithm_documents_usability_contract() -> None:
     algorithm = read_text("docs/resolution-algorithm.md")
 

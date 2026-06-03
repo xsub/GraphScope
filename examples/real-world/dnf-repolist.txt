@@ -1,0 +1,7 @@
+repo id                  repo name
+almalinux-testing        AlmaLinux 10 - Testing
+appstream                AlmaLinux 10 - AppStream
+baseos                   AlmaLinux 10 - BaseOS
+crb                      AlmaLinux 10 - CRB
+epel                     Extra Packages for Enterprise Linux 10 - x86_64
+extras                   AlmaLinux 10 - Extras
