@@ -15,7 +15,9 @@ pub mod resolver;
 pub mod snapshot;
 pub mod storage;
 
-pub use adapter::{AdapterCapability, AdapterProfile, adapter_profile, adapter_profiles};
+pub use adapter::{
+    AdapterCapability, AdapterProfile, AdapterStatus, adapter_profile, adapter_profiles,
+};
 pub use advisory::{Advisory, AdvisorySeverity, ImpactFinding, ImpactReport, VexStatus};
 pub use demo::{demo_advisories, demo_policy_set, demo_repository};
 pub use evidence::{

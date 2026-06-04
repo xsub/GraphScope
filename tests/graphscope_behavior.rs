@@ -277,8 +277,8 @@ fn cli_adapters_outputs_adapter_coverage() {
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Adapter coverage"));
-    assert!(stdout.contains("python via pip/Poetry"));
-    assert!(stdout.contains("rpm via DNF/RPM"));
+    assert!(stdout.contains("python via pip/Poetry: status=fixture parser"));
+    assert!(stdout.contains("rpm via DNF/RPM: status=fixture parser"));
     assert!(stdout.contains("minimal version selection"));
 }
 

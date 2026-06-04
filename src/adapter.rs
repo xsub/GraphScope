@@ -19,6 +19,27 @@ pub enum AdapterCapability {
     SbomNormalization,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum AdapterStatus {
+    Implemented,
+    FixtureParser,
+    OracleAdapter,
+    Planned,
+    Blocked,
+}
+
+impl fmt::Display for AdapterStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Implemented => write!(f, "implemented"),
+            Self::FixtureParser => write!(f, "fixture parser"),
+            Self::OracleAdapter => write!(f, "oracle adapter"),
+            Self::Planned => write!(f, "planned"),
+            Self::Blocked => write!(f, "blocked"),
+        }
+    }
+}
+
 impl fmt::Display for AdapterCapability {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -42,6 +63,7 @@ impl fmt::Display for AdapterCapability {
 pub struct AdapterProfile {
     pub ecosystem: Ecosystem,
     pub package_manager: &'static str,
+    pub status: AdapterStatus,
     pub evidence_formats: Vec<EvidenceFormat>,
     pub capabilities: Vec<AdapterCapability>,
     pub production_gaps: Vec<&'static str>,
@@ -62,6 +84,7 @@ pub fn adapter_profiles() -> Vec<AdapterProfile> {
         AdapterProfile {
             ecosystem: Ecosystem::Other("sbom".to_string()),
             package_manager: "CycloneDX",
+            status: AdapterStatus::FixtureParser,
             evidence_formats: vec![EvidenceFormat::CycloneDxSbom],
             capabilities: vec![
                 AdapterCapability::SbomNormalization,
@@ -72,6 +95,7 @@ pub fn adapter_profiles() -> Vec<AdapterProfile> {
         AdapterProfile {
             ecosystem: Ecosystem::Rpm,
             package_manager: "DNF/RPM",
+            status: AdapterStatus::FixtureParser,
             evidence_formats: vec![EvidenceFormat::RpmInventory],
             capabilities: vec![
                 AdapterCapability::RuntimeInventoryParsing,
@@ -84,6 +108,7 @@ pub fn adapter_profiles() -> Vec<AdapterProfile> {
         AdapterProfile {
             ecosystem: Ecosystem::Python,
             package_manager: "pip/Poetry",
+            status: AdapterStatus::FixtureParser,
             evidence_formats: vec![EvidenceFormat::PipRequirements],
             capabilities: vec![
                 AdapterCapability::LockfileParsing,
@@ -97,6 +122,7 @@ pub fn adapter_profiles() -> Vec<AdapterProfile> {
         AdapterProfile {
             ecosystem: Ecosystem::Maven,
             package_manager: "Maven",
+            status: AdapterStatus::FixtureParser,
             evidence_formats: vec![EvidenceFormat::MavenPom],
             capabilities: vec![
                 AdapterCapability::ManifestParsing,
@@ -110,6 +136,7 @@ pub fn adapter_profiles() -> Vec<AdapterProfile> {
         AdapterProfile {
             ecosystem: Ecosystem::Gradle,
             package_manager: "Gradle",
+            status: AdapterStatus::FixtureParser,
             evidence_formats: vec![EvidenceFormat::GradleBuild],
             capabilities: vec![
                 AdapterCapability::ManifestParsing,
@@ -122,6 +149,7 @@ pub fn adapter_profiles() -> Vec<AdapterProfile> {
         AdapterProfile {
             ecosystem: Ecosystem::Npm,
             package_manager: "npm",
+            status: AdapterStatus::FixtureParser,
             evidence_formats: vec![EvidenceFormat::NpmPackageLock],
             capabilities: vec![
                 AdapterCapability::LockfileParsing,
@@ -136,6 +164,7 @@ pub fn adapter_profiles() -> Vec<AdapterProfile> {
         AdapterProfile {
             ecosystem: Ecosystem::Go,
             package_manager: "Go modules",
+            status: AdapterStatus::FixtureParser,
             evidence_formats: vec![EvidenceFormat::GoMod],
             capabilities: vec![
                 AdapterCapability::LockfileParsing,
@@ -148,6 +177,7 @@ pub fn adapter_profiles() -> Vec<AdapterProfile> {
         AdapterProfile {
             ecosystem: Ecosystem::Cargo,
             package_manager: "Cargo",
+            status: AdapterStatus::FixtureParser,
             evidence_formats: vec![EvidenceFormat::CargoLock],
             capabilities: vec![
                 AdapterCapability::LockfileParsing,
@@ -210,6 +240,24 @@ mod tests {
         assert!(npm.supports(AdapterCapability::ParallelVersionSlots));
         assert!(go.supports(AdapterCapability::MinimalVersionSelection));
         assert!(rpm.supports(AdapterCapability::RepositoryContext));
+    }
+
+    #[test]
+    fn adapter_profiles_mark_fixture_parsers_separately_from_native_resolvers() {
+        let profiles = adapter_profiles();
+
+        assert!(profiles.iter().all(|profile| {
+            profile.status != AdapterStatus::Implemented || profile.production_gaps.is_empty()
+        }));
+        assert!(
+            profiles
+                .iter()
+                .any(|profile| profile.status == AdapterStatus::FixtureParser)
+        );
+        assert_eq!(
+            adapter_profile(&Ecosystem::Rpm).unwrap().status,
+            AdapterStatus::FixtureParser
+        );
     }
 
     #[test]

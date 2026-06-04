@@ -51,8 +51,9 @@ def test_readme_badges_reference_ci_workflows_and_platforms() -> None:
         "supply-chain.yml/badge.svg",
         "AlmaLinux-10",
         "CloudLinux-OS",
-        "SQLite-adapter",
-        "RocksDB-adapter",
+        "SQLite-planned%20contract",
+        "RocksDB-deferred%20cache",
+        "RPM%2FDNF-fixture%20parser",
         "pytest-CI",
     ]:
         assert token in readme
@@ -206,3 +207,31 @@ def test_project_goals_are_tracked_and_aligned_to_model_choice() -> None:
         "DNF/libsolv oracle",
     ]:
         assert token in model
+
+
+def test_capability_matrix_prevents_overstated_native_claims() -> None:
+    readme = read_text("README.md")
+    matrix = read_text("docs/capability-matrix.md")
+
+    assert "docs/capability-matrix.md" in readme
+    for token in [
+        "implemented",
+        "fixture parser",
+        "oracle adapter",
+        "planned",
+        "blocked",
+        "SQLite storage | planned",
+        "RocksDB cache | planned",
+        "RPM/DNF | fixture parser",
+    ]:
+        assert token in matrix
+
+    forbidden_readme_tokens = [
+        "SQLite-implemented",
+        "RocksDB-implemented",
+        "RPM%2FDNF-native",
+        "pip%2FPoetry-native",
+        "Maven%2FGradle-native",
+    ]
+    for token in forbidden_readme_tokens:
+        assert token not in readme

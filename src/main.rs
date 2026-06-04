@@ -367,8 +367,8 @@ fn print_adapters() {
             .collect::<Vec<_>>()
             .join(", ");
         println!(
-            "- {} via {}: formats=[{}] capabilities=[{}]",
-            profile.ecosystem, profile.package_manager, formats, capabilities
+            "- {} via {}: status={} formats=[{}] capabilities=[{}]",
+            profile.ecosystem, profile.package_manager, profile.status, formats, capabilities
         );
         if !profile.production_gaps.is_empty() {
             println!("  production gaps: {}", profile.production_gaps.join("; "));

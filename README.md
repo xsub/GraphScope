@@ -10,14 +10,14 @@
 ![AlmaLinux 10](https://img.shields.io/badge/AlmaLinux-10-262577?logo=almalinux)
 ![CloudLinux OS](https://img.shields.io/badge/CloudLinux-OS-1f6feb)
 ![TuxCare](https://img.shields.io/badge/TuxCare-supply--chain-0b7)
-![SQLite Adapter](https://img.shields.io/badge/SQLite-adapter%20feature-044a64?logo=sqlite)
-![RocksDB Adapter](https://img.shields.io/badge/RocksDB-adapter%20feature-5f4b8b)
-![RPM DNF](https://img.shields.io/badge/RPM%2FDNF-modeled-b31b1b)
-![pip Poetry](https://img.shields.io/badge/pip%2FPoetry-modeled-3776ab?logo=python)
-![Maven Gradle](https://img.shields.io/badge/Maven%2FGradle-modeled-c71a36?logo=apachemaven)
-![npm](https://img.shields.io/badge/npm-modeled-cb3837?logo=npm)
-![Go Modules](https://img.shields.io/badge/Go%20modules-modeled-00add8?logo=go)
-![Cargo](https://img.shields.io/badge/Cargo-modeled-orange?logo=rust)
+![SQLite Contract](https://img.shields.io/badge/SQLite-planned%20contract-044a64?logo=sqlite)
+![RocksDB Deferred](https://img.shields.io/badge/RocksDB-deferred%20cache-5f4b8b)
+![RPM DNF](https://img.shields.io/badge/RPM%2FDNF-fixture%20parser-b31b1b)
+![pip Poetry](https://img.shields.io/badge/pip%2FPoetry-fixture%20parser-3776ab?logo=python)
+![Maven Gradle](https://img.shields.io/badge/Maven%2FGradle-fixture%20parser-c71a36?logo=apachemaven)
+![npm](https://img.shields.io/badge/npm-fixture%20parser-cb3837?logo=npm)
+![Go Modules](https://img.shields.io/badge/Go%20modules-fixture%20parser-00add8?logo=go)
+![Cargo](https://img.shields.io/badge/Cargo-fixture%20parser-orange?logo=rust)
 ![Adapter Matrix](https://img.shields.io/badge/adapter%20matrix-executable-0969da)
 ![CycloneDX](https://img.shields.io/badge/CycloneDX-1.6-0b7)
 ![CycloneDX Ingest](https://img.shields.io/badge/CycloneDX-ingest-0b7)
@@ -30,7 +30,7 @@
 ![File Store](https://img.shields.io/badge/file%20store-durable%20MVP-0a7)
 ![Event Log](https://img.shields.io/badge/event%20log-durable%20MVP-7952b3)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-180%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-182%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Dependency Free](https://img.shields.io/badge/runtime%20deps-0-success)
 
@@ -79,7 +79,7 @@ package:
 - auto-detecting evidence ingestion workflow for manifests, lockfiles, and RPM
   inventories,
 - executable adapter coverage matrix for RPM, Python, Maven, Gradle, npm, Go,
-  and Cargo MVP capabilities,
+  and Cargo fixture-parser capabilities plus documented production gaps,
 - transitive dependency graph output,
 - stable JSON graph snapshots with resolver decision traces,
 - conflict, skipped-dependency, and candidate-selection diagnostics,
@@ -210,6 +210,7 @@ synthetic demo scenario.
 
 - [Business Strategy](docs/business-strategy.md)
 - [Project Goals](PROJECT_GOALS.md)
+- [Capability Matrix](docs/capability-matrix.md)
 - [Language And Package Manager Analysis](docs/language-analysis.md)
 - [Architecture](docs/architecture.md)
 - [Hypergraph Model](docs/hypergraph-model.md)
