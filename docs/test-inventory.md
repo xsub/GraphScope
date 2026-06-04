@@ -44,10 +44,13 @@
 - `lockfile::tests::parses_gradle_dependency_declarations`: Gradle parser emits declared dependency evidence.
 - `lockfile::tests::parses_go_mod_single_and_block_requirements`: Go module parser emits locked module evidence from single-line and block requirements.
 - `lockfile::tests::parses_maven_pom_declared_dependencies`: Maven POM parser emits declared dependency evidence.
+- `lockfile::tests::parses_minified_cyclonedx_sbom_components_and_purl_versions`: CycloneDX parser handles minified SBOM JSON and derives versions from PURLs.
+- `lockfile::tests::parses_minified_npm_package_lock_packages_and_ignores_links`: npm parser handles minified package-lock JSON and skips link-only entries.
 - `lockfile::tests::parses_npm_package_lock_packages`: npm package-lock parser emits locked package evidence.
 - `lockfile::tests::parses_pip_pinned_requirements_as_locked_evidence`: pip requirements parser emits locked package evidence.
 - `lockfile::tests::parses_rpm_inventory_observed_packages`: RPM inventory parser emits observed package evidence.
 - `lockfile::tests::rejects_cargo_lock_package_without_version`: Cargo.lock parser rejects incomplete package blocks.
+- `lockfile::tests::rejects_malformed_json_with_line_number`: JSON evidence parsers report malformed input with a useful source line.
 - `lockfile::tests::rejects_maven_dependency_without_coordinates`: Maven POM parser rejects dependency blocks without required coordinates.
 - `lockfile::tests::rejects_rpm_inventory_without_version`: RPM inventory parser rejects package lines without versions.
 - `lockfile::tests::rejects_unpinned_pip_requirement_lines`: pip requirements parser rejects unpinned requirements.

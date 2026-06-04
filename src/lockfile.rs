@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{collections::BTreeMap, fmt};
 
 use crate::evidence::{
     EvidenceCatalog, EvidenceConfidence, EvidenceKind, EvidenceRecord, EvidenceSource,
@@ -189,34 +189,37 @@ pub fn parse_npm_package_lock(
     let locator = locator.into();
     let source = EvidenceSource::new(EvidenceKind::Lockfile, Some(Ecosystem::Npm), locator);
     let mut catalog = EvidenceCatalog::new();
-    let mut current_package = None::<String>;
 
-    for (index, raw_line) in input.lines().enumerate() {
-        let line_number = index + 1;
-        let line = raw_line.trim();
-        if let Some(path) = parse_json_object_key(line)
-            && let Some(package) = path.strip_prefix("node_modules/")
-        {
-            current_package = Some(package.to_string());
-        }
+    let root = parse_json_root(input)?;
+    let packages = root
+        .field("packages")
+        .and_then(JsonValue::as_object)
+        .ok_or_else(|| LockfileParseError::new(1, "npm package-lock is missing packages object"))?;
 
-        let Some(version) = parse_json_string_field(line, "version") else {
+    for (path, entry) in packages {
+        let Some(package_name) = path.strip_prefix("node_modules/") else {
             continue;
         };
-        let Some(package_name) = current_package.take() else {
-            continue;
-        };
-        if package_name.is_empty() || version.is_empty() {
+        let Some(version) = entry.field("version").and_then(JsonValue::as_str) else {
+            if entry.field("link").and_then(JsonValue::as_bool) == Some(true) {
+                continue;
+            }
             return Err(LockfileParseError::new(
-                line_number,
-                "npm package-lock entry is missing package name or version",
+                1,
+                format!("npm package-lock entry {path} is missing version"),
+            ));
+        };
+        if package_name.is_empty() {
+            continue;
+        };
+        if version.is_empty() {
+            return Err(LockfileParseError::new(
+                1,
+                format!("npm package-lock entry {path} has empty version"),
             ));
         }
 
-        let package = PackageRef::new(
-            npm_package_id(&package_name),
-            Version::parse(version.as_str()),
-        );
+        let package = PackageRef::new(npm_package_id(package_name), Version::parse(version));
         catalog.add(EvidenceRecord::package(
             source.clone(),
             package,
@@ -362,7 +365,12 @@ pub fn parse_cyclonedx_sbom(
     locator: impl Into<String>,
 ) -> Result<EvidenceCatalog, LockfileParseError> {
     let locator = locator.into();
-    if !input.contains("\"CycloneDX\"") {
+    let root = parse_json_root(input)?;
+    let bom_format = root
+        .field("bomFormat")
+        .and_then(JsonValue::as_str)
+        .ok_or_else(|| LockfileParseError::new(1, "CycloneDX SBOM is missing bomFormat"))?;
+    if bom_format != "CycloneDX" {
         return Err(LockfileParseError::new(
             1,
             "expected CycloneDX SBOM with bomFormat",
@@ -370,24 +378,33 @@ pub fn parse_cyclonedx_sbom(
     }
     let source = EvidenceSource::new(EvidenceKind::Sbom, None, locator);
     let mut catalog = EvidenceCatalog::new();
-    let components = extract_json_array(input, "components")
+    let components = root
+        .field("components")
+        .and_then(JsonValue::as_array)
         .ok_or_else(|| LockfileParseError::new(1, "CycloneDX SBOM is missing components array"))?;
 
-    for object in extract_json_objects(&components) {
-        let name = json_string_field(&object, "name")
+    for component in components {
+        let component = component.as_object().ok_or_else(|| {
+            LockfileParseError::new(1, "CycloneDX component entry must be a JSON object")
+        })?;
+        let name = component
+            .get("name")
+            .and_then(JsonValue::as_str)
             .ok_or_else(|| LockfileParseError::new(1, "CycloneDX component missing name"))?;
-        let purl = json_string_field(&object, "purl");
-        let version = json_string_field(&object, "version")
-            .or_else(|| purl.as_deref().and_then(version_from_purl))
+        let purl = component.get("purl").and_then(JsonValue::as_str);
+        let version = component
+            .get("version")
+            .and_then(JsonValue::as_str)
+            .map(str::to_string)
+            .or_else(|| purl.and_then(version_from_purl))
             .ok_or_else(|| LockfileParseError::new(1, "CycloneDX component missing version"))?;
         let package_id = purl
-            .as_deref()
             .and_then(|purl| package_id_from_purl(purl, &name))
             .unwrap_or_else(|| {
                 PackageId::new(
                     Ecosystem::Other("cyclonedx".to_string()),
                     None::<String>,
-                    name.clone(),
+                    name,
                 )
             });
         let package = PackageRef::new(package_id.clone(), Version::parse(version.clone()));
@@ -530,22 +547,6 @@ fn parse_toml_string_field(line: &str, field: &str) -> Option<String> {
     Some(value.to_string())
 }
 
-fn parse_json_object_key(line: &str) -> Option<String> {
-    let line = line.trim();
-    let line = line.strip_suffix('{')?.trim();
-    let line = line.strip_suffix(':')?.trim();
-    let value = line.strip_prefix('"')?.strip_suffix('"')?;
-    Some(value.to_string())
-}
-
-fn parse_json_string_field(line: &str, field: &str) -> Option<String> {
-    let prefix = format!("\"{field}\":");
-    let value = line.trim().strip_prefix(&prefix)?.trim();
-    let value = value.trim_end_matches(',').trim();
-    let value = value.strip_prefix('"')?.strip_suffix('"')?;
-    Some(value.to_string())
-}
-
 fn extract_xml_tag(line: &str, tag: &str) -> Option<String> {
     let start_tag = format!("<{tag}>");
     let end_tag = format!("</{tag}>");
@@ -597,99 +598,312 @@ fn gradle_scope(configuration: &str) -> DependencyScope {
     }
 }
 
-fn extract_json_array(input: &str, field: &str) -> Option<String> {
-    let pattern = format!("\"{field}\"");
-    let field_start = input.find(&pattern)?;
-    let rest = &input[field_start + pattern.len()..];
-    let array_offset = rest.find('[')?;
-    let array_start = field_start + pattern.len() + array_offset;
-    extract_balanced(input, array_start, '[', ']')
-        .map(|array| array[1..array.len() - 1].to_string())
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum JsonValue {
+    Object(BTreeMap<String, JsonValue>),
+    Array(Vec<JsonValue>),
+    String(String),
+    Number,
+    Bool(bool),
+    Null,
 }
 
-fn extract_json_objects(input: &str) -> Vec<String> {
-    let mut objects = Vec::new();
-    let mut search_start = 0;
-    while let Some(relative_start) = input[search_start..].find('{') {
-        let start = search_start + relative_start;
-        let Some(object) = extract_balanced(input, start, '{', '}') else {
-            break;
-        };
-        search_start = start + object.len();
-        objects.push(object);
-    }
-    objects
-}
-
-fn extract_balanced(input: &str, start: usize, open: char, close: char) -> Option<String> {
-    let mut depth = 0usize;
-    let mut in_string = false;
-    let mut escaped = false;
-
-    for (offset, ch) in input[start..].char_indices() {
-        if in_string {
-            if escaped {
-                escaped = false;
-            } else if ch == '\\' {
-                escaped = true;
-            } else if ch == '"' {
-                in_string = false;
-            }
-            continue;
-        }
-
-        if ch == '"' {
-            in_string = true;
-        } else if ch == open {
-            depth += 1;
-        } else if ch == close {
-            depth = depth.saturating_sub(1);
-            if depth == 0 {
-                let end = start + offset + ch.len_utf8();
-                return Some(input[start..end].to_string());
-            }
+impl JsonValue {
+    fn as_object(&self) -> Option<&BTreeMap<String, JsonValue>> {
+        match self {
+            JsonValue::Object(value) => Some(value),
+            _ => None,
         }
     }
 
-    None
-}
-
-fn json_string_field(input: &str, field: &str) -> Option<String> {
-    let pattern = format!("\"{field}\"");
-    let (_, rest) = input.split_once(&pattern)?;
-    let rest = rest.trim_start();
-    let rest = rest.strip_prefix(':')?.trim_start();
-    read_json_string(rest)
-}
-
-fn read_json_string(input: &str) -> Option<String> {
-    let mut chars = input.chars();
-    if chars.next()? != '"' {
-        return None;
+    fn as_array(&self) -> Option<&[JsonValue]> {
+        match self {
+            JsonValue::Array(value) => Some(value),
+            _ => None,
+        }
     }
-    let mut value = String::new();
-    let mut escaped = false;
-    for ch in chars {
-        if escaped {
+
+    fn as_str(&self) -> Option<&str> {
+        match self {
+            JsonValue::String(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    fn as_bool(&self) -> Option<bool> {
+        match self {
+            JsonValue::Bool(value) => Some(*value),
+            _ => None,
+        }
+    }
+
+    fn field(&self, name: &str) -> Option<&JsonValue> {
+        self.as_object()?.get(name)
+    }
+}
+
+fn parse_json_root(input: &str) -> Result<JsonValue, LockfileParseError> {
+    let mut parser = JsonParser::new(input);
+    let value = parser.parse_value()?;
+    parser.skip_whitespace();
+    if parser.peek_char().is_some() {
+        return parser.error("unexpected trailing JSON content");
+    }
+    Ok(value)
+}
+
+struct JsonParser<'a> {
+    input: &'a str,
+    offset: usize,
+}
+
+impl<'a> JsonParser<'a> {
+    fn new(input: &'a str) -> Self {
+        Self { input, offset: 0 }
+    }
+
+    fn parse_value(&mut self) -> Result<JsonValue, LockfileParseError> {
+        self.skip_whitespace();
+        match self.peek_char() {
+            Some('{') => self.parse_object(),
+            Some('[') => self.parse_array(),
+            Some('"') => self.parse_string().map(JsonValue::String),
+            Some('t') => self.consume_literal("true", JsonValue::Bool(true)),
+            Some('f') => self.consume_literal("false", JsonValue::Bool(false)),
+            Some('n') => self.consume_literal("null", JsonValue::Null),
+            Some('-' | '0'..='9') => self.parse_number(),
+            Some(_) => self.error("expected JSON value"),
+            None => self.error("unexpected end of JSON input"),
+        }
+    }
+
+    fn parse_object(&mut self) -> Result<JsonValue, LockfileParseError> {
+        self.expect_char('{')?;
+        let mut object = BTreeMap::new();
+        self.skip_whitespace();
+        if self.peek_char() == Some('}') {
+            self.bump_char();
+            return Ok(JsonValue::Object(object));
+        }
+
+        loop {
+            self.skip_whitespace();
+            let key = self.parse_string()?;
+            self.skip_whitespace();
+            self.expect_char(':')?;
+            let value = self.parse_value()?;
+            object.insert(key, value);
+            self.skip_whitespace();
+            match self.peek_char() {
+                Some(',') => {
+                    self.bump_char();
+                }
+                Some('}') => {
+                    self.bump_char();
+                    return Ok(JsonValue::Object(object));
+                }
+                Some(_) => return self.error("expected comma or closing brace in JSON object"),
+                None => return self.error("unterminated JSON object"),
+            }
+        }
+    }
+
+    fn parse_array(&mut self) -> Result<JsonValue, LockfileParseError> {
+        self.expect_char('[')?;
+        let mut values = Vec::new();
+        self.skip_whitespace();
+        if self.peek_char() == Some(']') {
+            self.bump_char();
+            return Ok(JsonValue::Array(values));
+        }
+
+        loop {
+            values.push(self.parse_value()?);
+            self.skip_whitespace();
+            match self.peek_char() {
+                Some(',') => {
+                    self.bump_char();
+                }
+                Some(']') => {
+                    self.bump_char();
+                    return Ok(JsonValue::Array(values));
+                }
+                Some(_) => return self.error("expected comma or closing bracket in JSON array"),
+                None => return self.error("unterminated JSON array"),
+            }
+        }
+    }
+
+    fn parse_string(&mut self) -> Result<String, LockfileParseError> {
+        self.expect_char('"')?;
+        let mut value = String::new();
+        loop {
+            let Some(ch) = self.bump_char() else {
+                return self.error("unterminated JSON string");
+            };
             match ch {
-                '"' => value.push('"'),
-                '\\' => value.push('\\'),
-                '/' => value.push('/'),
-                'n' => value.push('\n'),
-                'r' => value.push('\r'),
-                't' => value.push('\t'),
+                '"' => return Ok(value),
+                '\\' => value.push(self.parse_escape()?),
+                ch if ch <= '\u{1f}' => {
+                    return self.error("unescaped control character in JSON string");
+                }
                 other => value.push(other),
             }
-            escaped = false;
-        } else if ch == '\\' {
-            escaped = true;
-        } else if ch == '"' {
-            return Some(value);
-        } else {
-            value.push(ch);
         }
     }
-    None
+
+    fn parse_escape(&mut self) -> Result<char, LockfileParseError> {
+        let Some(ch) = self.bump_char() else {
+            return self.error("unterminated JSON escape");
+        };
+        match ch {
+            '"' => Ok('"'),
+            '\\' => Ok('\\'),
+            '/' => Ok('/'),
+            'b' => Ok('\u{0008}'),
+            'f' => Ok('\u{000c}'),
+            'n' => Ok('\n'),
+            'r' => Ok('\r'),
+            't' => Ok('\t'),
+            'u' => self.parse_unicode_escape(),
+            _ => self.error("invalid JSON escape"),
+        }
+    }
+
+    fn parse_unicode_escape(&mut self) -> Result<char, LockfileParseError> {
+        let first = self.parse_hex4()?;
+        let codepoint = if (0xd800..=0xdbff).contains(&first) {
+            if self.peek_char() != Some('\\') {
+                return self.error("missing low surrogate in JSON unicode escape");
+            }
+            self.bump_char();
+            if self.peek_char() != Some('u') {
+                return self.error("missing low surrogate in JSON unicode escape");
+            }
+            self.bump_char();
+            let second = self.parse_hex4()?;
+            if !(0xdc00..=0xdfff).contains(&second) {
+                return self.error("invalid low surrogate in JSON unicode escape");
+            }
+            0x10000 + (((first as u32) - 0xd800) << 10) + ((second as u32) - 0xdc00)
+        } else if (0xdc00..=0xdfff).contains(&first) {
+            return self.error("unexpected low surrogate in JSON unicode escape");
+        } else {
+            first as u32
+        };
+
+        let Some(decoded) = char::from_u32(codepoint) else {
+            return self.error("invalid JSON unicode escape");
+        };
+        Ok(decoded)
+    }
+
+    fn parse_hex4(&mut self) -> Result<u16, LockfileParseError> {
+        let mut value = 0u16;
+        for _ in 0..4 {
+            let Some(ch) = self.bump_char() else {
+                return self.error("unterminated JSON unicode escape");
+            };
+            let Some(digit) = ch.to_digit(16) else {
+                return self.error("invalid JSON unicode escape");
+            };
+            value = (value * 16) + digit as u16;
+        }
+        Ok(value)
+    }
+
+    fn parse_number(&mut self) -> Result<JsonValue, LockfileParseError> {
+        if self.peek_char() == Some('-') {
+            self.bump_char();
+        }
+
+        match self.peek_char() {
+            Some('0') => {
+                self.bump_char();
+            }
+            Some('1'..='9') => {
+                self.bump_char();
+                self.consume_digits();
+            }
+            _ => return self.error("invalid JSON number"),
+        }
+
+        if self.peek_char() == Some('.') {
+            self.bump_char();
+            if !self.consume_digits() {
+                return self.error("invalid JSON number fraction");
+            }
+        }
+
+        if matches!(self.peek_char(), Some('e' | 'E')) {
+            self.bump_char();
+            if matches!(self.peek_char(), Some('+' | '-')) {
+                self.bump_char();
+            }
+            if !self.consume_digits() {
+                return self.error("invalid JSON number exponent");
+            }
+        }
+
+        Ok(JsonValue::Number)
+    }
+
+    fn consume_digits(&mut self) -> bool {
+        let start = self.offset;
+        while matches!(self.peek_char(), Some('0'..='9')) {
+            self.bump_char();
+        }
+        self.offset != start
+    }
+
+    fn consume_literal(
+        &mut self,
+        literal: &str,
+        value: JsonValue,
+    ) -> Result<JsonValue, LockfileParseError> {
+        if self.input[self.offset..].starts_with(literal) {
+            self.offset += literal.len();
+            Ok(value)
+        } else {
+            self.error("invalid JSON literal")
+        }
+    }
+
+    fn expect_char(&mut self, expected: char) -> Result<(), LockfileParseError> {
+        match self.bump_char() {
+            Some(actual) if actual == expected => Ok(()),
+            Some(_) => self.error(format!("expected JSON character {expected}")),
+            None => self.error(format!("expected JSON character {expected}")),
+        }
+    }
+
+    fn skip_whitespace(&mut self) {
+        while matches!(self.peek_char(), Some(' ' | '\n' | '\r' | '\t')) {
+            self.bump_char();
+        }
+    }
+
+    fn peek_char(&self) -> Option<char> {
+        self.input[self.offset..].chars().next()
+    }
+
+    fn bump_char(&mut self) -> Option<char> {
+        let ch = self.peek_char()?;
+        self.offset += ch.len_utf8();
+        Some(ch)
+    }
+
+    fn line(&self) -> usize {
+        self.input[..self.offset]
+            .bytes()
+            .filter(|byte| *byte == b'\n')
+            .count()
+            + 1
+    }
+
+    fn error<T>(&self, message: impl Into<String>) -> Result<T, LockfileParseError> {
+        Err(LockfileParseError::new(self.line(), message))
+    }
 }
 
 fn version_from_purl(purl: &str) -> Option<String> {
@@ -880,6 +1094,43 @@ mod tests {
     }
 
     #[test]
+    fn parses_minified_npm_package_lock_packages_and_ignores_links() {
+        let catalog = parse_npm_package_lock(
+            r#"{"lockfileVersion":3,"packages":{"":{"name":"portal","version":"1.0.0"},"node_modules/react":{"version":"18.3.1"},"node_modules/@cloudlinux/ui":{"version":"5.1.0"},"node_modules/portal-link":{"link":true,"resolved":"."}}}"#,
+            "package-lock.json",
+        )
+        .unwrap();
+
+        let locked = catalog.locked_packages();
+        assert_eq!(locked.len(), 2);
+        assert!(
+            locked
+                .iter()
+                .any(|package| package.id == PackageId::npm(None::<String>, "react"))
+        );
+        assert!(
+            locked.iter().any(|package| {
+                package.id == PackageId::npm(Some("cloudlinux".to_string()), "ui")
+            })
+        );
+    }
+
+    #[test]
+    fn rejects_malformed_json_with_line_number() {
+        let error = parse_npm_package_lock(
+            r#"{
+              "packages": {
+                "node_modules/react": {"version": "18.3.1"}
+            "#,
+            "package-lock.json",
+        )
+        .unwrap_err();
+
+        assert!(error.line >= 3);
+        assert!(error.message.contains("unterminated"));
+    }
+
+    #[test]
     fn parses_maven_pom_declared_dependencies() {
         let catalog = parse_maven_pom_dependencies(
             r#"
@@ -1028,6 +1279,24 @@ mod tests {
             1
         );
         assert_eq!(catalog.summary().by_kind["Sbom"], 2);
+    }
+
+    #[test]
+    fn parses_minified_cyclonedx_sbom_components_and_purl_versions() {
+        let catalog = parse_cyclonedx_sbom(
+            r#"{"bomFormat":"CycloneDX","components":[{"type":"library","name":"urllib3","purl":"pkg:pypi/urllib3@2.2.2"},{"type":"library","name":"@cloudlinux/theme","purl":"pkg:npm/%40cloudlinux/theme@5.1.0"}]}"#,
+            "bom.json",
+        )
+        .unwrap();
+
+        assert_eq!(catalog.records().len(), 2);
+        assert_eq!(catalog.by_package(&PackageId::python("urllib3")).len(), 1);
+        assert_eq!(
+            catalog
+                .by_package(&PackageId::npm(Some("cloudlinux".to_string()), "theme"))
+                .len(),
+            1
+        );
     }
 
     #[test]
