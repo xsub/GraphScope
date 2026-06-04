@@ -21,8 +21,8 @@ pub use adapter::{
 pub use advisory::{Advisory, AdvisorySeverity, ImpactFinding, ImpactReport, VexStatus};
 pub use demo::{demo_advisories, demo_policy_set, demo_repository};
 pub use evidence::{
-    EvidenceCatalog, EvidenceConfidence, EvidenceKind, EvidenceRecord, EvidenceSource,
-    EvidenceSubject, EvidenceSummary,
+    EvidenceCatalog, EvidenceConfidence, EvidenceKind, EvidenceRecord, EvidenceRepositoryBuilder,
+    EvidenceRepositoryInput, EvidenceSource, EvidenceSubject, EvidenceSummary, ProjectEvidence,
 };
 pub use export::{CycloneDxView, RemediationReport, RiskDashboard, SlaSummary, SpdxView, VexView};
 pub use hypergraph::{

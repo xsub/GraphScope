@@ -1,9 +1,9 @@
 use graphscope::{
     ChangeEvent, CycloneDxView, EvidenceSubject, FileChangeEventLog, FileGraphStore, GraphDiff,
-    GraphQuery, GraphSnapshot, ImpactReport, InMemoryGraphStore, RemediationReport, Resolver,
-    ResolverJob, ResolverService, RiskDashboard, SlaSummary, SpdxView, TenantAccessPolicy,
-    TenantRole, VexView, adapter_profiles, demo_advisories, demo_policy_set, demo_repository,
-    parse_evidence,
+    GraphQuery, GraphSnapshot, ImpactReport, InMemoryGraphStore, ProjectEvidence,
+    RemediationReport, Resolver, ResolverJob, ResolverService, RiskDashboard, SlaSummary, SpdxView,
+    TenantAccessPolicy, TenantRole, VexView, adapter_profiles, demo_advisories, demo_policy_set,
+    demo_repository, parse_evidence,
 };
 
 fn main() {
@@ -23,6 +23,13 @@ fn main() {
         "dashboard" => print_dashboard(),
         "invalidate" => print_invalidation(),
         "evidence" => print_evidence(args.get(2).map(String::as_str)),
+        "resolve-evidence" => print_resolve_evidence(
+            args.iter()
+                .skip(2)
+                .map(String::as_str)
+                .collect::<Vec<_>>()
+                .as_slice(),
+        ),
         "adapters" => print_adapters(),
         "access" => print_access(),
         "persist" => persist_demo(args.get(2).map(String::as_str)),
@@ -54,6 +61,7 @@ fn print_help() {
     println!("  graphscope dashboard   print a product risk dashboard summary");
     println!("  graphscope invalidate   plan graph invalidation from metadata changes");
     println!("  graphscope evidence <path>   normalize a manifest, lockfile, or inventory");
+    println!("  graphscope resolve-evidence <path...>   resolve evidence files into a snapshot");
     println!("  graphscope adapters   show ecosystem adapter coverage");
     println!("  graphscope access   demonstrate tenant access isolation");
     println!("  graphscope persist <dir>   persist the demo graph snapshot to a file store");
@@ -339,6 +347,40 @@ fn print_evidence(path: Option<&str>) {
             record.summary
         );
     }
+}
+
+fn print_resolve_evidence(paths: &[&str]) {
+    if paths.is_empty() {
+        eprintln!("missing evidence path");
+        print_help();
+        std::process::exit(2);
+    }
+
+    let mut catalogs = Vec::new();
+    for path in paths {
+        let input = std::fs::read_to_string(path).unwrap_or_else(|error| {
+            eprintln!("failed to read {path}: {error}");
+            std::process::exit(2);
+        });
+        let catalog = parse_evidence(&input, *path).unwrap_or_else(|error| {
+            eprintln!("failed to parse evidence: {error}");
+            std::process::exit(2);
+        });
+        catalogs.push(catalog);
+    }
+
+    let evidence = ProjectEvidence::from_catalogs(catalogs);
+    let input = graphscope::EvidenceRepositoryBuilder::new().build(&evidence);
+    let context = graphscope::ResolutionContext::cloudlinux_production_x86_64();
+    let result = Resolver::new(input.repository).resolve(input.roots, &context);
+    let snapshot = GraphSnapshot::from_resolve_result(
+        "evidence",
+        env!("CARGO_PKG_VERSION"),
+        &context,
+        &result,
+    );
+
+    println!("{}", snapshot.to_json_pretty());
 }
 
 fn print_counts(label: &str, counts: &std::collections::BTreeMap<String, usize>) {

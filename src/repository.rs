@@ -6,7 +6,7 @@ pub trait PackageRepository {
     fn candidates(&self, package: &PackageId) -> Vec<PackageVersion>;
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct InMemoryRepository {
     packages: BTreeMap<PackageId, Vec<PackageVersion>>,
 }

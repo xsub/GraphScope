@@ -1,6 +1,11 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
-use crate::model::{DependencyRequirement, Ecosystem, PackageId, PackageRef};
+use crate::hypergraph::{ClauseSource, DependencyHypergraph, RequirementClause};
+use crate::model::{
+    DependencyRequirement, Ecosystem, PackageId, PackageRef, PackageVersion, VersionClause,
+    VersionRequirement,
+};
+use crate::repository::InMemoryRepository;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum EvidenceKind {
@@ -239,6 +244,234 @@ impl EvidenceCatalog {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ProjectEvidence {
+    catalog: EvidenceCatalog,
+}
+
+impl ProjectEvidence {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn from_catalog(catalog: EvidenceCatalog) -> Self {
+        Self { catalog }
+    }
+
+    pub fn from_catalogs(catalogs: impl IntoIterator<Item = EvidenceCatalog>) -> Self {
+        let mut evidence = Self::new();
+        for catalog in catalogs {
+            evidence.catalog.extend(catalog.records);
+        }
+        evidence
+    }
+
+    pub fn catalog(&self) -> &EvidenceCatalog {
+        &self.catalog
+    }
+
+    pub fn into_catalog(self) -> EvidenceCatalog {
+        self.catalog
+    }
+
+    pub fn declared_dependencies(&self) -> Vec<&EvidenceRecord> {
+        self.catalog
+            .records
+            .iter()
+            .filter(|record| matches!(record.subject, EvidenceSubject::Dependency { .. }))
+            .collect()
+    }
+
+    pub fn locked_packages(&self) -> Vec<PackageRef> {
+        self.catalog.locked_packages()
+    }
+
+    pub fn observed_packages(&self) -> Vec<PackageRef> {
+        self.catalog
+            .records
+            .iter()
+            .filter(|record| record.confidence == EvidenceConfidence::Observed)
+            .filter_map(EvidenceRecord::package_ref)
+            .cloned()
+            .collect()
+    }
+
+    pub fn repository_facts(&self) -> Vec<&EvidenceRecord> {
+        self.catalog
+            .by_source_kind(EvidenceKind::RepositoryMetadata)
+    }
+
+    pub fn advisory_facts(&self) -> Vec<&EvidenceRecord> {
+        self.catalog.by_source_kind(EvidenceKind::Advisory)
+    }
+
+    pub fn context_facts(&self) -> Vec<&EvidenceRecord> {
+        self.catalog
+            .records
+            .iter()
+            .filter(|record| matches!(record.subject, EvidenceSubject::Context(_)))
+            .collect()
+    }
+
+    pub fn to_hypergraph(&self) -> DependencyHypergraph {
+        let mut graph = DependencyHypergraph::new();
+        for record in self.declared_dependencies() {
+            if let EvidenceSubject::Dependency {
+                requester,
+                requirement,
+            } = &record.subject
+            {
+                let source = requester
+                    .clone()
+                    .map(ClauseSource::Package)
+                    .unwrap_or(ClauseSource::Root);
+                let requirement = requirement_with_evidence_id(requirement, &record.id);
+                graph.add_clause(RequirementClause::from_requirement(
+                    record.id.clone(),
+                    source,
+                    requirement,
+                ));
+            }
+        }
+        graph
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EvidenceRepositoryInput {
+    pub repository: InMemoryRepository,
+    pub roots: Vec<DependencyRequirement>,
+    pub evidence_ids: BTreeMap<String, Vec<String>>,
+}
+
+fn package_version_from_ref(package_ref: &PackageRef) -> PackageVersion {
+    PackageVersion::new(package_ref.id.clone(), package_ref.version.raw.clone())
+}
+
+fn candidate_from_requirement(requirement: &DependencyRequirement) -> Option<PackageVersion> {
+    exact_version_requirement(&requirement.requirement)
+        .map(|version| PackageVersion::new(requirement.target.clone(), version.raw.clone()))
+}
+
+fn exact_version_requirement(requirement: &VersionRequirement) -> Option<&crate::model::Version> {
+    match requirement.clauses.as_slice() {
+        [VersionClause::Exact(version)] => Some(version),
+        _ => None,
+    }
+}
+
+fn requirement_with_evidence_id(
+    requirement: &DependencyRequirement,
+    evidence_id: &str,
+) -> DependencyRequirement {
+    let mut requirement = requirement.clone();
+    requirement.evidence = format!("{}; evidence={evidence_id}", requirement.evidence);
+    requirement
+}
+
+fn push_unique_root(
+    roots: &mut Vec<DependencyRequirement>,
+    seen: &mut BTreeSet<String>,
+    requirement: DependencyRequirement,
+) {
+    let key = format!(
+        "{}|{}|{}|{}",
+        requirement.target, requirement.requirement, requirement.relation, requirement.scope
+    );
+    if seen.insert(key) {
+        roots.push(requirement);
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct EvidenceRepositoryBuilder;
+
+impl EvidenceRepositoryBuilder {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn build(&self, evidence: &ProjectEvidence) -> EvidenceRepositoryInput {
+        let mut packages = BTreeMap::<PackageRef, PackageVersion>::new();
+        let mut package_evidence = BTreeMap::<PackageRef, Vec<String>>::new();
+        let mut dependencies_by_requester =
+            BTreeMap::<PackageRef, Vec<DependencyRequirement>>::new();
+        let mut roots = Vec::<DependencyRequirement>::new();
+        let mut root_keys = BTreeSet::<String>::new();
+
+        for record in evidence.catalog.records() {
+            match &record.subject {
+                EvidenceSubject::Package(package_ref) => {
+                    packages
+                        .entry(package_ref.clone())
+                        .or_insert_with(|| package_version_from_ref(package_ref));
+                    package_evidence
+                        .entry(package_ref.clone())
+                        .or_default()
+                        .push(record.id.clone());
+                }
+                EvidenceSubject::Dependency {
+                    requester,
+                    requirement,
+                } => {
+                    let requirement = requirement_with_evidence_id(requirement, &record.id);
+                    if let Some(candidate) = candidate_from_requirement(&requirement) {
+                        packages.entry(candidate.package_ref()).or_insert(candidate);
+                    }
+
+                    if let Some(requester) = requester {
+                        dependencies_by_requester
+                            .entry(requester.clone())
+                            .or_default()
+                            .push(requirement);
+                    } else {
+                        push_unique_root(&mut roots, &mut root_keys, requirement.clone());
+                    }
+                }
+                EvidenceSubject::Advisory { .. } | EvidenceSubject::Context(_) => {}
+            }
+        }
+
+        if roots.is_empty() {
+            for package_ref in packages.keys() {
+                push_unique_root(
+                    &mut roots,
+                    &mut root_keys,
+                    DependencyRequirement::new(
+                        package_ref.id.clone(),
+                        VersionRequirement::exact(package_ref.version.raw.clone()),
+                    )
+                    .evidence(format!("observed-or-locked package {}", package_ref)),
+                );
+            }
+        }
+
+        for (requester, dependencies) in dependencies_by_requester {
+            packages
+                .entry(requester.clone())
+                .or_insert_with(|| package_version_from_ref(&requester))
+                .dependencies
+                .extend(dependencies);
+        }
+
+        let mut repository = InMemoryRepository::new();
+        for package in packages.into_values() {
+            repository.add(package);
+        }
+
+        let evidence_ids = package_evidence
+            .into_iter()
+            .map(|(package, ids)| (package.to_string(), ids))
+            .collect();
+
+        EvidenceRepositoryInput {
+            repository,
+            roots,
+            evidence_ids,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct EvidenceSummary {
     pub total_records: usize,
     pub package_records: usize,
@@ -298,6 +531,8 @@ pub(crate) fn stable_hash(input: &str) -> u64 {
 mod tests {
     use super::*;
     use crate::model::{DependencyRequirement, PackageId, Version, VersionRequirement};
+    use crate::repository::PackageRepository;
+    use crate::resolver::Resolver;
 
     #[test]
     fn evidence_record_id_is_stable_for_identical_inputs() {
@@ -417,5 +652,65 @@ mod tests {
         assert_eq!(summary.by_kind["Manifest"], 1);
         assert_eq!(summary.by_ecosystem["npm"], 1);
         assert_eq!(summary.by_confidence["Declared"], 1);
+    }
+
+    #[test]
+    fn project_evidence_builds_repository_roots_from_locked_packages() {
+        let source = EvidenceSource::new(
+            EvidenceKind::Lockfile,
+            Some(Ecosystem::Python),
+            "requirements.lock",
+        );
+        let package = PackageRef::new(PackageId::python("urllib3"), Version::parse("2.2.2"));
+        let mut catalog = EvidenceCatalog::new();
+        catalog.add(EvidenceRecord::package(
+            source,
+            package.clone(),
+            EvidenceConfidence::Locked,
+            "locked Python package",
+        ));
+
+        let evidence = ProjectEvidence::from_catalog(catalog);
+        let input = EvidenceRepositoryBuilder::new().build(&evidence);
+
+        assert_eq!(input.roots.len(), 1);
+        assert_eq!(input.roots[0].target, package.id);
+        assert_eq!(input.repository.candidates(&package.id).len(), 1);
+        assert!(input.evidence_ids.contains_key(&package.to_string()));
+    }
+
+    #[test]
+    fn project_evidence_converts_declared_dependencies_to_hypergraph_and_resolver_input() {
+        let package = PackageId::maven("org.slf4j", "slf4j-api");
+        let source = EvidenceSource::new(EvidenceKind::Manifest, Some(Ecosystem::Maven), "pom.xml");
+        let requirement =
+            DependencyRequirement::new(package.clone(), VersionRequirement::exact("2.0.13"))
+                .evidence("pom.xml dependency org.slf4j:slf4j-api");
+        let mut catalog = EvidenceCatalog::new();
+        catalog.add(EvidenceRecord::dependency(
+            source,
+            None,
+            requirement,
+            EvidenceConfidence::Declared,
+            "declared Maven dependency",
+        ));
+
+        let evidence = ProjectEvidence::from_catalog(catalog);
+        let graph = evidence.to_hypergraph();
+        let input = EvidenceRepositoryBuilder::new().build(&evidence);
+        let result = Resolver::new(input.repository).resolve(
+            input.roots,
+            &crate::model::ResolutionContext::cloudlinux_production_x86_64(),
+        );
+
+        assert_eq!(graph.clauses_for_target(&package).len(), 1);
+        assert!(result.conflicts.is_empty());
+        assert!(result.contains_package(&package));
+        assert!(
+            result.edges[0]
+                .requirement
+                .evidence
+                .contains("evidence=ev-")
+        );
     }
 }

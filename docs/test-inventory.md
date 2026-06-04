@@ -23,6 +23,8 @@
 - `evidence::tests::catalog_returns_locked_packages`: Evidence catalog returns locked package references.
 - `evidence::tests::catalog_summary_counts_records_by_shape_and_source`: Evidence summary counts records by subject shape, source kind, ecosystem, and confidence.
 - `evidence::tests::evidence_record_id_is_stable_for_identical_inputs`: Evidence records receive stable IDs for identical inputs.
+- `evidence::tests::project_evidence_builds_repository_roots_from_locked_packages`: Project evidence builds resolver repository roots from locked packages.
+- `evidence::tests::project_evidence_converts_declared_dependencies_to_hypergraph_and_resolver_input`: Project evidence converts declared dependencies to hypergraph clauses and resolver input.
 - `export::tests::cyclonedx_view_exports_components_and_dependencies`: CycloneDX view exports graph components and dependencies.
 - `export::tests::remediation_report_includes_paths_and_actions`: Remediation report includes dependency paths and actions.
 - `export::tests::risk_dashboard_aggregates_sla_summaries`: Risk dashboard aggregates SLA summaries across products.
@@ -149,6 +151,7 @@
 - `cli_policy_outputs_policy_violations`: CLI policy prints compliance status and policy violations.
 - `cli_persist_writes_file_store_snapshot`: CLI persist writes a durable file-store snapshot and index.
 - `cli_report_outputs_remediation_markdown`: CLI report prints remediation Markdown.
+- `cli_resolve_evidence_outputs_snapshot_from_fixture`: CLI resolve-evidence emits a graph snapshot from parsed evidence.
 - `cli_sbom_outputs_cyclonedx_view`: CLI sbom prints a CycloneDX-style view.
 - `cli_sla_outputs_risk_summary`: CLI sla prints advisory and policy risk summary JSON.
 - `cli_snapshot_outputs_stable_json_sections`: CLI snapshot command prints stable JSON graph sections.
@@ -169,6 +172,7 @@
 - `public_api_creates_stable_snapshot_from_resolved_graph`: Public API creates a stable graph snapshot from a resolved graph.
 - `public_api_exposes_skipped_dependency_reason`: Public API exposes skipped dependency reasons.
 - `public_api_projects_resolved_graph_to_occurrence_traversal_indexes`: Public API projects resolved graphs to occurrence traversal indexes.
+- `public_api_resolves_parsed_evidence_catalog`: Public API resolves a graph from a parsed evidence catalog.
 - `public_api_reports_conflict_for_missing_candidate`: Public API reports missing candidate conflicts.
 - `public_api_resolves_demo_graph_without_conflicts`: Public API resolves the demo graph without conflicts.
 - `test_cargo_features_expose_adapter_surfaces`: Pytest verifies Cargo feature flags expose planned adapter surfaces.

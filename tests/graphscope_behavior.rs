@@ -2,11 +2,11 @@ use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use graphscope::{
-    DependencyRequirement, Ecosystem, EvidenceConfidence, GraphSnapshot, PackageId, PackageVersion,
-    Resolver, VersionRequirement, demo_repository, parse_cargo_lock_packages, parse_cyclonedx_sbom,
-    parse_evidence, parse_go_mod_requirements, parse_gradle_dependencies,
-    parse_maven_pom_dependencies, parse_npm_package_lock, parse_pip_requirements_lock,
-    parse_rpm_inventory,
+    DependencyRequirement, Ecosystem, EvidenceConfidence, EvidenceRepositoryBuilder, GraphSnapshot,
+    PackageId, PackageVersion, ProjectEvidence, Resolver, VersionRequirement, demo_repository,
+    parse_cargo_lock_packages, parse_cyclonedx_sbom, parse_evidence, parse_go_mod_requirements,
+    parse_gradle_dependencies, parse_maven_pom_dependencies, parse_npm_package_lock,
+    parse_pip_requirements_lock, parse_rpm_inventory,
 };
 
 #[test]
@@ -265,6 +265,21 @@ fn cli_evidence_outputs_normalized_summary() {
     assert!(stdout.contains("Records: 3"));
     assert!(stdout.contains("Ecosystems:"));
     assert!(stdout.contains("package npm:react@18.3.1"));
+}
+
+#[test]
+fn cli_resolve_evidence_outputs_snapshot_from_fixture() {
+    let output = Command::new(env!("CARGO_BIN_EXE_graphscope"))
+        .arg("resolve-evidence")
+        .arg("tests/fixtures/pip/requirements.lock")
+        .output()
+        .expect("resolve-evidence command should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("\"snapshot_id\""));
+    assert!(stdout.contains("python:requests"));
+    assert!(stdout.contains("python:urllib3"));
 }
 
 #[test]
@@ -555,6 +570,22 @@ fn public_api_creates_stable_snapshot_from_resolved_graph() {
     assert!(snapshot.id.starts_with("snap-"));
     assert!(snapshot.context_hash.starts_with("ctx-"));
     assert!(json.contains("tuxcare-supply-chain-platform"));
+}
+
+#[test]
+fn public_api_resolves_parsed_evidence_catalog() {
+    let input = include_str!("fixtures/pip/requirements.lock");
+    let catalog = parse_evidence(input, "tests/fixtures/pip/requirements.lock").unwrap();
+    let evidence = ProjectEvidence::from_catalog(catalog);
+    let resolver_input = EvidenceRepositoryBuilder::new().build(&evidence);
+    let result = Resolver::new(resolver_input.repository).resolve(
+        resolver_input.roots,
+        &graphscope::ResolutionContext::cloudlinux_production_x86_64(),
+    );
+
+    assert!(result.conflicts.is_empty());
+    assert!(result.contains_package(&PackageId::python("requests")));
+    assert!(result.contains_package(&PackageId::python("urllib3")));
 }
 
 #[test]

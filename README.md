@@ -30,7 +30,7 @@
 ![File Store](https://img.shields.io/badge/file%20store-durable%20MVP-0a7)
 ![Event Log](https://img.shields.io/badge/event%20log-durable%20MVP-7952b3)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-182%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-186%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Dependency Free](https://img.shields.io/badge/runtime%20deps-0-success)
 
@@ -125,6 +125,7 @@ cargo run -- invalidate
 cargo run -- evidence tests/fixtures/npm/package-lock.json
 cargo run -- evidence tests/fixtures/sbom/cyclonedx.json
 cargo run -- evidence examples/real-world/almalinux-10-rpm.list
+cargo run -- resolve-evidence tests/fixtures/pip/requirements.lock
 cargo run -- adapters
 cargo run -- access
 cargo run -- persist /tmp/graphscope-store
@@ -177,6 +178,8 @@ synthetic demo scenario.
   policy changes.
 - `evidence <path>`: auto-detect and normalize a manifest, lockfile, or RPM
   inventory into evidence records.
+- `resolve-evidence <path...>`: auto-detect evidence files, build resolver input,
+  and emit a stable graph snapshot.
 - `adapters`: ecosystem adapter coverage and production gaps.
 - `access`: tenant access policy and authorized graph lookup demo.
 - `persist <dir>`: resolve and persist the demo graph snapshot into a durable
