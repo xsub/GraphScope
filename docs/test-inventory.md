@@ -193,6 +193,7 @@
 - `public_api_resolves_demo_graph_without_conflicts`: Public API resolves the demo graph without conflicts.
 - `test_cargo_features_expose_adapter_surfaces`: Pytest verifies Cargo feature flags expose planned adapter surfaces.
 - `test_capability_matrix_prevents_overstated_native_claims`: Pytest verifies capability docs and README badges do not overstate native implementation.
+- `test_ci_workflows_gate_conformance_commands`: Pytest verifies CI workflows run formatting, lint, all-feature tests, real-world evidence, and conformance commands.
 - `test_hypergraph_model_documents_source_of_truth_and_projection`: Pytest verifies the hypergraph model documents source-of-truth and projection decisions.
 - `test_project_goals_are_tracked_and_aligned_to_model_choice`: Pytest verifies the project goals are tracked and aligned to the chosen model.
 - `test_github_workflows_exist_for_readme_badges`: Pytest verifies each README workflow badge has a backing workflow file.

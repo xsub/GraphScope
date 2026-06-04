@@ -36,3 +36,6 @@ jobs:
 
       - name: Demo
         run: cargo run --locked -- demo
+
+      - name: Real-world evidence smoke
+        run: cargo run --locked -- real-world

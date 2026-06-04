@@ -358,6 +358,11 @@ Status: expand tests while keeping them cheap.
 
 Goal: prevent drift between claims, docs, and implemented behavior.
 
+MVP progress: CI now has Rust, AlmaLinux 10, storage-readiness, supply-chain,
+docs, pytest, and conformance workflows. The conformance gate runs all-feature
+Rust tests, repository contract tests, the real-world evidence command, and a
+real evidence-to-snapshot smoke check.
+
 - Add test classes:
   - parser conformance;
   - DNF oracle comparison;

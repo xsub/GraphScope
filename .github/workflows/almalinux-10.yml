@@ -36,3 +36,6 @@ jobs:
 
       - name: Run demo on AlmaLinux 10
         run: cargo run --locked -- demo
+
+      - name: Run real-world evidence smoke on AlmaLinux 10
+        run: cargo run --locked -- real-world

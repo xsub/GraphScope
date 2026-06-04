@@ -6,6 +6,7 @@
 [![Pytest](../../actions/workflows/pytest.yml/badge.svg)](../../actions/workflows/pytest.yml)
 [![Docs](../../actions/workflows/docs.yml/badge.svg)](../../actions/workflows/docs.yml)
 [![Supply Chain](../../actions/workflows/supply-chain.yml/badge.svg)](../../actions/workflows/supply-chain.yml)
+[![Conformance](../../actions/workflows/conformance.yml/badge.svg)](../../actions/workflows/conformance.yml)
 ![Rust 2024](https://img.shields.io/badge/Rust-2024-orange?logo=rust)
 ![AlmaLinux 10](https://img.shields.io/badge/AlmaLinux-10-262577?logo=almalinux)
 ![CloudLinux OS](https://img.shields.io/badge/CloudLinux-OS-1f6feb)
@@ -30,7 +31,7 @@
 ![File Store](https://img.shields.io/badge/file%20store-durable%20MVP-0a7)
 ![Event Log](https://img.shields.io/badge/event%20log-durable%20MVP-7952b3)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-202%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-203%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Runtime Deps](https://img.shields.io/badge/runtime%20deps-rusqlite%20optional-blue)
 

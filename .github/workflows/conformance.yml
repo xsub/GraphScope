@@ -1,0 +1,43 @@
+name: Conformance
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    name: Repository conformance gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pytest
+        run: python -m pip install --upgrade pytest
+
+      - name: Rust all-features conformance
+        run: cargo test --all-features --locked
+
+      - name: Repository contract conformance
+        run: python -m pytest -q
+
+      - name: Real-world evidence conformance
+        run: cargo run --locked -- real-world
+
+      - name: Evidence-to-snapshot conformance
+        run: |
+          cargo run --locked -- resolve-evidence examples/real-world/almalinux-10-rpm.list > /tmp/almalinux-snapshot.json
+          grep '"snapshot_id"' /tmp/almalinux-snapshot.json

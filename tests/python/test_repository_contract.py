@@ -35,6 +35,7 @@ def test_github_workflows_exist_for_readme_badges() -> None:
         "pytest.yml",
         "docs.yml",
         "supply-chain.yml",
+        "conformance.yml",
     ]:
         assert (ROOT / ".github" / "workflows" / workflow).is_file()
 
@@ -49,6 +50,7 @@ def test_readme_badges_reference_ci_workflows_and_platforms() -> None:
         "pytest.yml/badge.svg",
         "docs.yml/badge.svg",
         "supply-chain.yml/badge.svg",
+        "conformance.yml/badge.svg",
         "AlmaLinux-10",
         "CloudLinux-OS",
         "SQLite-implemented%20MVP",
@@ -57,6 +59,25 @@ def test_readme_badges_reference_ci_workflows_and_platforms() -> None:
         "pytest-CI",
     ]:
         assert token in readme
+
+
+def test_ci_workflows_gate_conformance_commands() -> None:
+    rust = read_text(".github/workflows/rust-ci.yml")
+    almalinux = read_text(".github/workflows/almalinux-10.yml")
+    supply_chain = read_text(".github/workflows/supply-chain.yml")
+    conformance = read_text(".github/workflows/conformance.yml")
+
+    assert "cargo fmt --check" in rust
+    assert "cargo clippy --all-targets --all-features -- -D warnings" in rust
+    assert "cargo test --all-features --locked" in rust
+    assert "cargo run --locked -- real-world" in rust
+    assert "container:" in almalinux
+    assert "image: almalinux:10" in almalinux
+    assert "cargo run --locked -- real-world" in almalinux
+    assert "cargo tree --locked --all-features" in supply_chain
+    assert "dependency-free prototype" not in supply_chain
+    assert "python -m pytest -q" in conformance
+    assert "resolve-evidence examples/real-world/almalinux-10-rpm.list" in conformance
 
 
 def test_test_inventory_lists_rust_and_pytest_contract_tests() -> None:
