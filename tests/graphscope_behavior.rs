@@ -556,3 +556,24 @@ fn public_api_creates_stable_snapshot_from_resolved_graph() {
     assert!(snapshot.context_hash.starts_with("ctx-"));
     assert!(json.contains("tuxcare-supply-chain-platform"));
 }
+
+#[test]
+fn public_api_projects_resolved_graph_to_occurrence_traversal_indexes() {
+    let (repository, roots, context) = demo_repository();
+    let result = Resolver::new(repository).resolve(roots, &context);
+    let projection =
+        graphscope::ResolvedGraphProjection::from_resolve_result(context.stable_key(), &result);
+    let openssl = PackageId::rpm("openssl-libs");
+    let openssl_occurrence = projection
+        .package_occurrences(&openssl)
+        .pop()
+        .expect("openssl occurrence should exist");
+
+    assert!(!projection.roots().is_empty());
+    assert!(
+        !projection
+            .reverse_closure_from(&openssl_occurrence)
+            .is_empty()
+    );
+    assert_eq!(projection.edges.len(), result.edges.len());
+}

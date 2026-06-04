@@ -29,6 +29,9 @@
 - `export::tests::sla_summary_combines_impact_and_policy_counts`: SLA summary combines advisory and policy counts.
 - `export::tests::spdx_view_exports_packages_and_relationships`: SPDX view exports packages and dependency relationships.
 - `export::tests::vex_view_exports_affected_and_unaffected_statements`: VEX view exports affected and not-affected statements.
+- `hypergraph::tests::hypergraph_clause_preserves_alternative_targets`: Hypergraph clauses preserve multiple provider or alternative targets.
+- `hypergraph::tests::hypergraph_filters_clauses_by_context_before_traversal`: Hypergraph activation filters clauses before resolved traversal.
+- `hypergraph::tests::resolved_projection_builds_forward_and_reverse_occurrence_indexes`: Resolved graph projection builds forward and reverse occurrence indexes.
 - `ingest::tests::detects_supported_evidence_formats`: Ingestion detects supported evidence formats from locators.
 - `ingest::tests::parse_evidence_dispatches_cyclonedx_sbom`: Ingestion dispatch parses CycloneDX SBOM evidence.
 - `ingest::tests::parse_evidence_dispatches_npm_package_lock`: Ingestion dispatch parses npm package-lock evidence.
@@ -164,9 +167,11 @@
 - `public_api_auto_parses_rpm_inventory_fixture`: Public API auto-detects and parses an RPM inventory fixture.
 - `public_api_creates_stable_snapshot_from_resolved_graph`: Public API creates a stable graph snapshot from a resolved graph.
 - `public_api_exposes_skipped_dependency_reason`: Public API exposes skipped dependency reasons.
+- `public_api_projects_resolved_graph_to_occurrence_traversal_indexes`: Public API projects resolved graphs to occurrence traversal indexes.
 - `public_api_reports_conflict_for_missing_candidate`: Public API reports missing candidate conflicts.
 - `public_api_resolves_demo_graph_without_conflicts`: Public API resolves the demo graph without conflicts.
 - `test_cargo_features_expose_adapter_surfaces`: Pytest verifies Cargo feature flags expose planned adapter surfaces.
+- `test_hypergraph_model_documents_source_of_truth_and_projection`: Pytest verifies the hypergraph model documents source-of-truth and projection decisions.
 - `test_github_workflows_exist_for_readme_badges`: Pytest verifies each README workflow badge has a backing workflow file.
 - `test_demo_artifacts_are_checked_in_and_linked`: Pytest verifies demo artifacts are checked in and linked from the README.
 - `test_real_world_almalinux_inventory_is_checked_in_and_linked`: Pytest verifies real AlmaLinux inventory evidence is checked in and linked from the README.

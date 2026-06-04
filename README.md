@@ -30,7 +30,7 @@
 ![File Store](https://img.shields.io/badge/file%20store-durable%20MVP-0a7)
 ![Event Log](https://img.shields.io/badge/event%20log-durable%20MVP-7952b3)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-174%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-179%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Dependency Free](https://img.shields.io/badge/runtime%20deps-0-success)
 
@@ -69,6 +69,8 @@ This repository contains a dependency-free Rust MVP and a complete architecture
 package:
 
 - universal package, version, scope, condition, and provenance model,
+- executable hypergraph/projection model for requirement clauses, alternatives,
+  resolved occurrences, and traversal indexes,
 - context-aware resolver with ecosystem-specific version selection policy,
 - normalized evidence records plus parser coverage for pip requirements, Go
   modules, Cargo.lock, npm package-lock, Maven POM dependencies, Gradle
@@ -209,6 +211,7 @@ synthetic demo scenario.
 - [Business Strategy](docs/business-strategy.md)
 - [Language And Package Manager Analysis](docs/language-analysis.md)
 - [Architecture](docs/architecture.md)
+- [Hypergraph Model](docs/hypergraph-model.md)
 - [Resolution Algorithm](docs/resolution-algorithm.md)
 - [Roadmap](docs/roadmap.md)
 - [Test Inventory](docs/test-inventory.md)

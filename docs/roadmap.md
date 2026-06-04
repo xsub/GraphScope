@@ -85,6 +85,10 @@ truthful results.
   For the first robust MVP, DNF/libdnf/libsolv can be an oracle through a command
   adapter on AlmaLinux/CloudLinux. Direct bindings can follow only after the data
   contract is stable.
+- Use a hypergraph for semantics and ordinary graphs for resolved traversal.
+  Unresolved requirements, providers, conflicts, alternatives, and context belong
+  in `RequirementClause` records. Customer-facing dependency paths, reverse
+  impact, reports, and exports belong on resolved occurrence graph projections.
 - Prefer SQLite before RocksDB.
   SQLite is enough for MVP durability, testability, and query visibility. RocksDB
   remains a later high-volume parsed-fact cache, not the first storage backend.
@@ -119,6 +123,9 @@ Goal: turn parsed evidence into a real graph input instead of a printed summary.
 
 - Add `ProjectEvidence` with separate collections for declared dependencies,
   locked packages, observed packages, repository facts, advisories, and context.
+- Convert parsed evidence into typed `RequirementClause` records before turning it
+  into resolver inputs. The hypergraph must preserve alternatives, providers,
+  conflicts, weak/optional/peer semantics, conditions, and native evidence.
 - Add `EvidenceRepositoryBuilder` that converts evidence records into:
   - root requirements;
   - package candidates;
@@ -256,6 +263,7 @@ Goal: snapshots must preserve enough data to audit business answers.
   - package source, checksum, signature, purl, license, architecture, source RPM;
   - edge conditions, features, exclusions, relation, scope, confidence, and
     evidence IDs;
+  - occurrence IDs for slot-local, bundled, or repeated package instances;
   - resolver adapter name and version;
   - repository metadata IDs and timestamps;
   - policy ID and policy hash when policy affects the answer.
@@ -263,11 +271,17 @@ Goal: snapshots must preserve enough data to audit business answers.
   Queries must return package refs or slots when more than one version of a
   package exists in a graph.
 - Add graph views:
+  - resolved occurrence graph projection;
   - resolved installable graph;
   - observed runtime graph;
   - advisory overlay;
   - policy overlay;
   - live patch overlay.
+- Keep traversal indexes behind the projection contract:
+  - adjacency lists for cold MVP queries;
+  - CSR for forward traversal when snapshots get large;
+  - CSC for reverse impact;
+  - selective reachability labels only for hot workloads with measured need.
 - Exit criteria:
   - `explain` can show why a dependency is present or absent using structured
     evidence, not only free-text strings;
@@ -372,6 +386,9 @@ The project can call itself a complete MVP when all of these are true:
 These are important, but not needed for the complete MVP.
 
 - Dedicated graph database.
+- Global transitive closure materialization.
+- PCSR, LSMGraph, ChunkGraph, DAG compression, and advanced reachability indexes
+  until production graph size and query telemetry justify them.
 - RocksDB high-volume parsed fact cache.
 - Full web UI.
 - Direct libsolv/libdnf bindings if the DNF oracle adapter is sufficient for MVP.

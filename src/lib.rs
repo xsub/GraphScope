@@ -3,6 +3,7 @@ pub mod advisory;
 pub mod demo;
 pub mod evidence;
 pub mod export;
+pub mod hypergraph;
 pub mod ingest;
 pub mod lockfile;
 pub mod model;
@@ -22,6 +23,11 @@ pub use evidence::{
     EvidenceSubject, EvidenceSummary,
 };
 pub use export::{CycloneDxView, RemediationReport, RiskDashboard, SlaSummary, SpdxView, VexView};
+pub use hypergraph::{
+    ClauseId, ClauseSemantics, ClauseSource, DependencyAlternative, DependencyHypergraph,
+    OccurrenceId, RequirementClause, ResolvedGraphProjection, ResolvedOccurrence,
+    ResolvedOccurrenceEdge, occurrence_id,
+};
 pub use ingest::{EvidenceFormat, IngestError, parse_evidence};
 pub use lockfile::{
     parse_cargo_lock_packages, parse_cyclonedx_sbom, parse_go_mod_requirements,

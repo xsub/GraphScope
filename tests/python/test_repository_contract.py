@@ -156,3 +156,27 @@ def test_resolution_algorithm_avoids_placeholder_control_flow() -> None:
         old_loop_sentence,
     ]:
         assert token not in algorithm
+
+
+def test_hypergraph_model_documents_source_of_truth_and_projection() -> None:
+    readme = read_text("README.md")
+    architecture = read_text("docs/architecture.md")
+    model = read_text("docs/hypergraph-model.md")
+    roadmap = read_text("docs/roadmap.md")
+
+    assert "docs/hypergraph-model.md" in readme
+    for token in [
+        "typed context-conditioned hypergraph",
+        "resolved occurrence",
+        "Do not use a graph database as the source of truth",
+        "Resolve first, traverse projections",
+        "CSR",
+        "CSC",
+        "FASTEN",
+        "RequirementClause",
+        "ResolvedGraphProjection",
+    ]:
+        assert token in model
+
+    assert "Hypergraph Source Of Truth And Projections" in architecture
+    assert "resolved occurrence graph projection" in roadmap

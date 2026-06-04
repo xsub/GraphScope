@@ -90,8 +90,14 @@ Recommended storage pattern:
 
 - compressed adjacency lists for snapshot traversal;
 - columnar edge tables for analytics;
-- graph database or graph-query layer for interactive investigations;
+- graph-query layer for interactive investigations;
 - cached closure indexes for high-frequency CVE and advisory impact queries.
+
+Do not use a graph database as the source of truth for resolver semantics. The
+authoritative model is the typed, context-conditioned hypergraph of requirement
+clauses plus immutable resolved occurrence projections. A graph database can
+consume those projections for exploration, but it should not own package-manager
+meaning.
 
 The MVP implements this as an in-memory graph store keyed by tenant, product,
 and context hash. It is intentionally small, but it exercises the production
@@ -145,6 +151,35 @@ The MVP exposes these workflows through CLI commands and public Rust APIs:
 and `diff`.
 
 ## Universal Data Model
+
+### Hypergraph Source Of Truth And Projections
+
+GraphScope has two graph-shaped layers, and they must not be conflated.
+
+The semantic source of truth is a typed context-conditioned hypergraph. It stores
+unresolved `RequirementClause` records with relation, scope, alternatives,
+providers, conflicts, activation predicates, native evidence, and resolver
+context. This is the right model for RPM capabilities, Python extras and
+environment markers, npm peers, Maven exclusions, Gradle variants, Go build tags,
+Cargo features, bundled code, dynamic loading, and weak dependencies.
+
+The query surface is a resolved occurrence graph projection. A `ResolvedOccurrence`
+represents a selected package version in a specific context, slot, artifact, or
+bundled/local identity. Traversal, reverse impact, path explanations, graph diffs,
+SBOMs, SPDX, VEX, remediation reports, SLA summaries, and dashboards should read
+from this projection.
+
+Resolve first, traverse projections. The unresolved hypergraph can answer
+"which declarations mention this package or capability?", but customer and
+security questions such as "is this dependency present?" or "who is affected?"
+must run against resolved occurrence snapshots.
+
+The MVP implements this direction through `src/hypergraph.rs`, which adds
+`DependencyHypergraph`, `RequirementClause`, `DependencyAlternative`,
+`ResolvedOccurrence`, and `ResolvedGraphProjection`. The next implementation
+phase should feed parsed evidence into this hypergraph layer before resolution
+and carry occurrence identity through the resolver instead of deriving it after
+the fact.
 
 ### Package
 
