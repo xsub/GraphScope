@@ -30,11 +30,11 @@ Status values:
 | npm | fixture parser + contract | `parse_npm_package_lock`, npm resolution contract | Peer propagation, overrides, optional/platform filters. |
 | Go modules | fixture parser + contract | `parse_go_mod_requirements`, MVS policy, Go resolution contract | `go list -m all`, `go mod graph`, replace/exclude/build tags. |
 | Cargo | fixture parser + contract | `parse_cargo_lock_packages`, Cargo resolution contract | `cargo metadata`, feature unification, target cfg, patches. |
-| SQLite storage | planned | Cargo feature surface and roadmap | `rusqlite` schema, transactions, restart/concurrency tests. |
+| SQLite storage | implemented | `SqliteGraphStore`, `rusqlite`, restart and event replay tests | Add migrations, retention policy, connection pooling, and larger concurrency tests. |
 | RocksDB cache | planned | Cargo feature surface and roadmap | Deferred until parsed-fact volume proves SQLite insufficient. |
 
 ## Guardrail
 
-README badges and docs must not claim native package-manager fidelity, SQLite
-storage, or RocksDB cache implementation until the matrix status changes to
-`implemented` or `oracle adapter` with backing tests.
+README badges and docs must not claim native package-manager fidelity or RocksDB
+cache implementation until the matrix status changes to `implemented` or
+`oracle adapter` with backing tests.

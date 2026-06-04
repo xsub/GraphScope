@@ -10,7 +10,7 @@
 ![AlmaLinux 10](https://img.shields.io/badge/AlmaLinux-10-262577?logo=almalinux)
 ![CloudLinux OS](https://img.shields.io/badge/CloudLinux-OS-1f6feb)
 ![TuxCare](https://img.shields.io/badge/TuxCare-supply--chain-0b7)
-![SQLite Contract](https://img.shields.io/badge/SQLite-planned%20contract-044a64?logo=sqlite)
+![SQLite](https://img.shields.io/badge/SQLite-implemented%20MVP-044a64?logo=sqlite)
 ![RocksDB Deferred](https://img.shields.io/badge/RocksDB-deferred%20cache-5f4b8b)
 ![RPM DNF](https://img.shields.io/badge/RPM%2FDNF-fixture%2Bcontract-b31b1b)
 ![pip Poetry](https://img.shields.io/badge/pip%2FPoetry-fixture%2Bcontract-3776ab?logo=python)
@@ -30,9 +30,9 @@
 ![File Store](https://img.shields.io/badge/file%20store-durable%20MVP-0a7)
 ![Event Log](https://img.shields.io/badge/event%20log-durable%20MVP-7952b3)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-198%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-201%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
-![Dependency Free](https://img.shields.io/badge/runtime%20deps-0-success)
+![Runtime Deps](https://img.shields.io/badge/runtime%20deps-rusqlite%20optional-blue)
 
 GraphScope is a unified dependency graph system for AlmaLinux OS, CloudLinux OS,
 and TuxCare supply-chain intelligence.
@@ -65,8 +65,7 @@ them into a lossy SBOM. The goal is to power:
 
 ## Current Repository Contents
 
-This repository contains a dependency-free Rust MVP and a complete architecture
-package:
+This repository contains a compact Rust MVP and a complete architecture package:
 
 - universal package, version, scope, condition, and provenance model,
 - executable hypergraph/projection model for requirement clauses, alternatives,
@@ -89,9 +88,9 @@ package:
 - advisory impact reports with evidence-backed dependency paths,
 - in-memory resolver job queue and graph store for customer/product snapshots,
 - tenant access policy primitives for customer isolation,
-- dependency-free durable file store for immutable graph snapshot JSON and
-  snapshot indexes,
-- dependency-free change-event log for replayable invalidation inputs,
+- durable file and SQLite stores for immutable graph snapshots, snapshot
+  indexes, and replayable change events,
+- file change-event log for replayable invalidation inputs,
 - incremental invalidation planning for package, repository, advisory, and
   policy changes,
 - customer policy evaluation for allowed sources, signing, denied packages,

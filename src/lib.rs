@@ -59,4 +59,6 @@ pub use resolver::{
     VersionMultiplicity,
 };
 pub use snapshot::GraphSnapshot;
+#[cfg(feature = "sqlite")]
+pub use storage::SqliteGraphStore;
 pub use storage::{FileChangeEventLog, FileGraphStore, StoredChangeEvent, StoredSnapshotRecord};

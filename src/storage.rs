@@ -2,10 +2,14 @@ use std::fs;
 use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+#[cfg(feature = "sqlite")]
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::model::{Ecosystem, PackageId};
 use crate::platform::ChangeEvent;
 use crate::platform::GraphRecord;
+#[cfg(feature = "sqlite")]
+use rusqlite::{Connection, OptionalExtension, params};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StoredSnapshotRecord {
@@ -161,6 +165,242 @@ impl FileGraphStore {
             encode_field(context_hash),
             encode_field(snapshot_id)
         ))
+    }
+}
+
+#[cfg(feature = "sqlite")]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SqliteGraphStore {
+    path: PathBuf,
+}
+
+#[cfg(feature = "sqlite")]
+impl SqliteGraphStore {
+    pub fn new(path: impl Into<PathBuf>) -> io::Result<Self> {
+        let path = path.into();
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let store = Self { path };
+        store.initialize()?;
+        Ok(store)
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    pub fn persist_record(&self, record: &GraphRecord) -> io::Result<StoredSnapshotRecord> {
+        let snapshot_json = record.snapshot.to_json_pretty();
+        let stored = StoredSnapshotRecord {
+            tenant: record.tenant.clone(),
+            product: record.product.clone(),
+            context_hash: record.snapshot.context_hash.clone(),
+            snapshot_id: record.snapshot.id.clone(),
+            resolver_version: record.snapshot.resolver_version.clone(),
+            snapshot_path: self.path.clone(),
+        };
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction().map_err(sqlite_error)?;
+        let existing = transaction
+            .query_row(
+                "SELECT snapshot_json FROM graph_snapshots WHERE snapshot_id = ?1",
+                params![stored.snapshot_id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(sqlite_error)?;
+
+        if let Some(existing) = existing {
+            if existing != snapshot_json {
+                return Err(io::Error::new(
+                    io::ErrorKind::AlreadyExists,
+                    "snapshot id already exists with different content",
+                ));
+            }
+            transaction.commit().map_err(sqlite_error)?;
+            return Ok(stored);
+        }
+
+        transaction
+            .execute(
+                "INSERT INTO graph_snapshots (
+                    snapshot_id,
+                    tenant,
+                    product,
+                    context_hash,
+                    resolver_version,
+                    snapshot_json,
+                    created_at_epoch
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![
+                    stored.snapshot_id,
+                    stored.tenant,
+                    stored.product,
+                    stored.context_hash,
+                    stored.resolver_version,
+                    snapshot_json,
+                    current_epoch_seconds()?
+                ],
+            )
+            .map_err(sqlite_error)?;
+        transaction.commit().map_err(sqlite_error)?;
+        Ok(stored)
+    }
+
+    pub fn list(&self) -> io::Result<Vec<StoredSnapshotRecord>> {
+        let connection = self.connection()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT tenant, product, context_hash, snapshot_id, resolver_version
+                 FROM graph_snapshots
+                 ORDER BY tenant, product, context_hash, snapshot_id",
+            )
+            .map_err(sqlite_error)?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok(StoredSnapshotRecord {
+                    tenant: row.get(0)?,
+                    product: row.get(1)?,
+                    context_hash: row.get(2)?,
+                    snapshot_id: row.get(3)?,
+                    resolver_version: row.get(4)?,
+                    snapshot_path: self.path.clone(),
+                })
+            })
+            .map_err(sqlite_error)?;
+
+        rows.collect::<Result<Vec<_>, _>>().map_err(sqlite_error)
+    }
+
+    pub fn find(
+        &self,
+        tenant: &str,
+        product: &str,
+        context_hash: &str,
+    ) -> io::Result<Vec<StoredSnapshotRecord>> {
+        let connection = self.connection()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT tenant, product, context_hash, snapshot_id, resolver_version
+                 FROM graph_snapshots
+                 WHERE tenant = ?1 AND product = ?2 AND context_hash = ?3
+                 ORDER BY snapshot_id",
+            )
+            .map_err(sqlite_error)?;
+        let rows = statement
+            .query_map(params![tenant, product, context_hash], |row| {
+                Ok(StoredSnapshotRecord {
+                    tenant: row.get(0)?,
+                    product: row.get(1)?,
+                    context_hash: row.get(2)?,
+                    snapshot_id: row.get(3)?,
+                    resolver_version: row.get(4)?,
+                    snapshot_path: self.path.clone(),
+                })
+            })
+            .map_err(sqlite_error)?;
+
+        rows.collect::<Result<Vec<_>, _>>().map_err(sqlite_error)
+    }
+
+    pub fn snapshot_json(&self, snapshot_id: &str) -> io::Result<Option<String>> {
+        self.connection()?
+            .query_row(
+                "SELECT snapshot_json FROM graph_snapshots WHERE snapshot_id = ?1",
+                params![snapshot_id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(sqlite_error)
+    }
+
+    pub fn append_event(&self, event: &ChangeEvent) -> io::Result<StoredChangeEvent> {
+        let (kind, payload_a, payload_b) = sqlite_event_fields(event);
+        let connection = self.connection()?;
+        connection
+            .execute(
+                "INSERT INTO change_events (kind, payload_a, payload_b)
+                 VALUES (?1, ?2, ?3)",
+                params![kind, payload_a, payload_b],
+            )
+            .map_err(sqlite_error)?;
+        Ok(StoredChangeEvent {
+            sequence: connection.last_insert_rowid() as u64,
+            event: event.clone(),
+        })
+    }
+
+    pub fn append_events(&self, events: &[ChangeEvent]) -> io::Result<Vec<StoredChangeEvent>> {
+        events
+            .iter()
+            .map(|event| self.append_event(event))
+            .collect()
+    }
+
+    pub fn list_events(&self) -> io::Result<Vec<StoredChangeEvent>> {
+        let connection = self.connection()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT sequence, kind, payload_a, payload_b
+                 FROM change_events
+                 ORDER BY sequence",
+            )
+            .map_err(sqlite_error)?;
+        let rows = statement
+            .query_map([], |row| {
+                let sequence = row.get::<_, i64>(0)? as u64;
+                let kind = row.get::<_, String>(1)?;
+                let payload_a = row.get::<_, String>(2)?;
+                let payload_b = row.get::<_, Option<String>>(3)?;
+                let event = sqlite_event_from_fields(&kind, payload_a, payload_b)
+                    .map_err(|error| rusqlite::Error::ToSqlConversionFailure(error.into()))?;
+                Ok(StoredChangeEvent { sequence, event })
+            })
+            .map_err(sqlite_error)?;
+
+        rows.collect::<Result<Vec<_>, _>>().map_err(sqlite_error)
+    }
+
+    pub fn events(&self) -> io::Result<Vec<ChangeEvent>> {
+        Ok(self
+            .list_events()?
+            .into_iter()
+            .map(|stored| stored.event)
+            .collect())
+    }
+
+    fn initialize(&self) -> io::Result<()> {
+        self.connection()?
+            .execute_batch(
+                "
+                PRAGMA journal_mode = WAL;
+                PRAGMA foreign_keys = ON;
+                CREATE TABLE IF NOT EXISTS graph_snapshots (
+                    snapshot_id TEXT PRIMARY KEY,
+                    tenant TEXT NOT NULL,
+                    product TEXT NOT NULL,
+                    context_hash TEXT NOT NULL,
+                    resolver_version TEXT NOT NULL,
+                    snapshot_json TEXT NOT NULL,
+                    created_at_epoch INTEGER NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS graph_snapshots_lookup
+                    ON graph_snapshots (tenant, product, context_hash);
+                CREATE TABLE IF NOT EXISTS change_events (
+                    sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                    kind TEXT NOT NULL,
+                    payload_a TEXT NOT NULL,
+                    payload_b TEXT
+                );
+                ",
+            )
+            .map(|_| ())
+            .map_err(sqlite_error)
+    }
+
+    fn connection(&self) -> io::Result<Connection> {
+        Connection::open(&self.path).map_err(sqlite_error)
     }
 }
 
@@ -368,6 +608,61 @@ fn parse_ecosystem(value: &str) -> Ecosystem {
     }
 }
 
+#[cfg(feature = "sqlite")]
+fn sqlite_event_fields(event: &ChangeEvent) -> (&'static str, String, Option<String>) {
+    match event {
+        ChangeEvent::PackageChanged(package) => ("package", package.to_string(), None),
+        ChangeEvent::AdvisoryChanged {
+            advisory_id,
+            package,
+        } => ("advisory", advisory_id.clone(), Some(package.to_string())),
+        ChangeEvent::RepositoryChanged(channel) => ("repository", channel.clone(), None),
+        ChangeEvent::PolicyChanged(policy_id) => ("policy", policy_id.clone(), None),
+    }
+}
+
+#[cfg(feature = "sqlite")]
+fn sqlite_event_from_fields(
+    kind: &str,
+    payload_a: String,
+    payload_b: Option<String>,
+) -> io::Result<ChangeEvent> {
+    match kind {
+        "package" => Ok(ChangeEvent::PackageChanged(parse_package_id(&payload_a)?)),
+        "advisory" => {
+            let Some(package) = payload_b else {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "advisory event is missing package payload",
+                ));
+            };
+            Ok(ChangeEvent::AdvisoryChanged {
+                advisory_id: payload_a,
+                package: parse_package_id(&package)?,
+            })
+        }
+        "repository" => Ok(ChangeEvent::RepositoryChanged(payload_a)),
+        "policy" => Ok(ChangeEvent::PolicyChanged(payload_a)),
+        _ => Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "unsupported SQLite change event kind",
+        )),
+    }
+}
+
+#[cfg(feature = "sqlite")]
+fn current_epoch_seconds() -> io::Result<i64> {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs() as i64)
+        .map_err(|error| io::Error::other(format!("system time before UNIX epoch: {error}")))
+}
+
+#[cfg(feature = "sqlite")]
+fn sqlite_error(error: rusqlite::Error) -> io::Error {
+    io::Error::other(format!("SQLite storage error: {error}"))
+}
+
 fn absolute_path(root: &Path, path: String) -> PathBuf {
     let path = PathBuf::from(path);
     if path.is_absolute() {
@@ -476,6 +771,74 @@ mod tests {
         assert_eq!(first.snapshot_id, second.snapshot_id);
         assert_eq!(store.list().unwrap().len(), 1);
         assert!(first.snapshot_path.exists());
+    }
+
+    #[cfg(feature = "sqlite")]
+    #[test]
+    fn sqlite_graph_store_persists_and_reads_snapshot_json() {
+        let path = test_store_dir("sqlite-persist").join("graphscope.db");
+        let store = SqliteGraphStore::new(path.clone()).unwrap();
+        let record = demo_record("customer-a", "portal");
+
+        let stored = store.persist_record(&record).unwrap();
+        let json = store.snapshot_json(&stored.snapshot_id).unwrap().unwrap();
+
+        assert_eq!(stored.snapshot_path, path);
+        assert!(store.path().exists());
+        assert!(json.contains(&record.snapshot.id));
+        assert!(json.contains("\"occurrences\""));
+    }
+
+    #[cfg(feature = "sqlite")]
+    #[test]
+    fn sqlite_graph_store_finds_context_records_after_reopen() {
+        let path = test_store_dir("sqlite-reopen").join("graphscope.db");
+        let store = SqliteGraphStore::new(path.clone()).unwrap();
+        let record = demo_record("customer-a", "portal");
+        let context_hash = record.snapshot.context_hash.clone();
+        let first = store.persist_record(&record).unwrap();
+        let second = store.persist_record(&record).unwrap();
+        drop(store);
+
+        let reopened = SqliteGraphStore::new(path).unwrap();
+        let records = reopened
+            .find("customer-a", "portal", &context_hash)
+            .unwrap();
+
+        assert_eq!(first.snapshot_id, second.snapshot_id);
+        assert_eq!(reopened.list().unwrap().len(), 1);
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].snapshot_id, record.snapshot.id);
+    }
+
+    #[cfg(feature = "sqlite")]
+    #[test]
+    fn sqlite_graph_store_appends_and_replays_events() {
+        let store =
+            SqliteGraphStore::new(test_store_dir("sqlite-events").join("graphscope.db")).unwrap();
+        store
+            .append_events(&[
+                ChangeEvent::PackageChanged(PackageId::python("urllib3")),
+                ChangeEvent::AdvisoryChanged {
+                    advisory_id: "CVE-2026-demo".to_string(),
+                    package: PackageId::rpm("openssl-libs"),
+                },
+                ChangeEvent::PolicyChanged("default-policy".to_string()),
+            ])
+            .unwrap();
+
+        let stored = store.list_events().unwrap();
+        let events = store.events().unwrap();
+
+        assert_eq!(stored.len(), 3);
+        assert_eq!(stored[0].sequence, 1);
+        assert_eq!(
+            events[1],
+            ChangeEvent::AdvisoryChanged {
+                advisory_id: "CVE-2026-demo".to_string(),
+                package: PackageId::rpm("openssl-libs"),
+            }
+        );
     }
 
     #[test]

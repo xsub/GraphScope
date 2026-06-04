@@ -51,7 +51,7 @@ def test_readme_badges_reference_ci_workflows_and_platforms() -> None:
         "supply-chain.yml/badge.svg",
         "AlmaLinux-10",
         "CloudLinux-OS",
-        "SQLite-planned%20contract",
+        "SQLite-implemented%20MVP",
         "RocksDB-deferred%20cache",
         "RPM%2FDNF-fixture%2Bcontract",
         "pytest-CI",
@@ -220,14 +220,13 @@ def test_capability_matrix_prevents_overstated_native_claims() -> None:
         "oracle adapter",
         "planned",
         "blocked",
-        "SQLite storage | planned",
+        "SQLite storage | implemented",
         "RocksDB cache | planned",
         "RPM/DNF | fixture parser",
     ]:
         assert token in matrix
 
     forbidden_readme_tokens = [
-        "SQLite-implemented",
         "RocksDB-implemented",
         "RPM%2FDNF-native",
         "pip%2FPoetry-native",

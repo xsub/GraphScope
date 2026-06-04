@@ -8,7 +8,7 @@ description = "Unified software supply-chain dependency graph MVP"
 [features]
 default = []
 rpm = []
-sqlite = []
+sqlite = ["dep:rusqlite"]
 rocksdb = []
 python = []
 java = []
@@ -33,3 +33,6 @@ path = "src/lib.rs"
 [[bin]]
 name = "graphscope"
 path = "src/main.rs"
+
+[dependencies]
+rusqlite = { version = "0.32", features = ["bundled"], optional = true }

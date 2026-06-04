@@ -149,6 +149,9 @@
 - `storage::tests::file_graph_store_lists_and_finds_context_records`: File graph store lists stored snapshots and finds records by context.
 - `storage::tests::file_graph_store_persists_and_reads_snapshot_json`: File graph store persists and reads immutable snapshot JSON.
 - `storage::tests::file_graph_store_repeated_persist_is_idempotent`: File graph store repeated persistence does not duplicate index records.
+- `storage::tests::sqlite_graph_store_appends_and_replays_events`: SQLite graph store appends and replays change events.
+- `storage::tests::sqlite_graph_store_finds_context_records_after_reopen`: SQLite graph store finds persisted records after reopening the database.
+- `storage::tests::sqlite_graph_store_persists_and_reads_snapshot_json`: SQLite graph store persists and reads immutable snapshot JSON.
 - `cli_adapters_outputs_adapter_coverage`: CLI adapters prints ecosystem adapter coverage.
 - `cli_access_outputs_tenant_isolation`: CLI access prints tenant policy and authorized lookup behavior.
 - `cli_demo_outputs_dependency_graph_sections`: CLI demo prints graph sections.

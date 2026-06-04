@@ -106,12 +106,11 @@ reverse dependencies, explanations, advisory impact, and invalidation planning.
 
 The durable MVP store persists immutable snapshot JSON files plus a compact
 snapshot index through `FileGraphStore` and the `graphscope persist <dir>`
-workflow. It also persists replayable invalidation inputs through
-`FileChangeEventLog` and the `graphscope events <dir>` workflow so package,
-repository, advisory, and policy changes can survive process restarts before
-being planned. Production SQLite, RocksDB, event-bus, or columnar adapters
-should preserve the same immutable snapshot and ordered event contracts while
-adding concurrency, compaction, and analytics indexes.
+workflow. `SqliteGraphStore` stores the same immutable snapshots and replayable
+change events in SQLite for restart-safe MVP durability. Production storage
+adapters should preserve the same immutable snapshot and ordered event contracts
+while adding migrations, concurrency controls, compaction, and analytics
+indexes.
 
 ### Graph Query And Impact API
 

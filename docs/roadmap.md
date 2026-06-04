@@ -13,12 +13,13 @@ review findings from the current project audit:
   Cargo correctness;
 - relations such as `Provides`, `Conflicts`, `Obsoletes`, `Bundles`, and dynamic
   loading are modeled but not enforced;
-- snapshots omit important provenance, metadata, conditions, and confidence;
-- fixture parsers are brittle compared with real JSON, XML, TOML, and package
-  manager output;
-- file storage and event logs are useful demos, not concurrent platform storage;
-- badges and feature flags can overstate implemented SQLite, RocksDB, and native
-  adapter readiness.
+- snapshots now include occurrence projections, but still need richer
+  provenance, metadata, conditions, confidence, and policy identity;
+- fixture parsers still need mature parsers for XML, TOML, package-manager
+  output, and non-trivial lockfile shapes;
+- file and SQLite storage are MVP durability, not concurrent platform storage;
+- badges and feature flags can still overstate RocksDB and native adapter
+  readiness if the capability matrix is not kept current.
 
 ## Public Ecosystem Anchors
 
@@ -74,7 +75,7 @@ not background decoration.
 The next work should keep the code compact, but remove constraints that prevent
 truthful results.
 
-- Remove the dependency-free constraint for parsers and storage.
+- Continue removing the dependency-free constraint for parsers and storage.
   Use small, mature crates where they remove brittle string parsing:
   `serde_json`, `toml`, `quick-xml` or `roxmltree`, `semver`, and `rusqlite`.
 - Keep the resolver core small.
@@ -102,8 +103,8 @@ Status: next documentation and CI cleanup.
 
 Goal: remove false confidence before adding more code.
 
-- Rename SQLite/RocksDB badges from implemented readiness to planned adapter
-  contract, or implement minimal real adapters before keeping readiness badges.
+- Keep the SQLite badge backed by `SqliteGraphStore` tests and keep the RocksDB
+  badge planned until a real cache backend exists.
 - Add a capability matrix that distinguishes:
   `implemented`, `fixture parser`, `oracle adapter`, `planned`, and `blocked`.
 - Update `README.md` so `demo` is clearly synthetic and
@@ -298,6 +299,11 @@ adapter identity, policy identity, and repository snapshot identity.
 Status: replace demo durability with real MVP durability.
 
 Goal: keep storage simple, correct, and testable.
+
+MVP progress: `SqliteGraphStore` now stores immutable snapshot JSON, lookup
+indexes, and replayable change events with idempotent snapshot persistence and
+restart tests. Remaining work is evidence-record tables, resolver job tables,
+schema migrations, retention, pooling, and broader concurrency coverage.
 
 - Implement SQLite storage first:
   - evidence sources and raw artifact digests;
