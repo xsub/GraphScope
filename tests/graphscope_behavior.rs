@@ -300,6 +300,25 @@ fn cli_adapters_outputs_adapter_coverage() {
 }
 
 #[test]
+fn cli_real_world_outputs_observed_almalinux_inventory() {
+    let output = Command::new(env!("CARGO_BIN_EXE_graphscope"))
+        .arg("real-world")
+        .output()
+        .expect("real-world command should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("GraphScope real-world AlmaLinux evidence"));
+    assert!(stdout.contains("AlmaLinux 10.2"));
+    assert!(stdout.contains("Records: 666"));
+    assert!(stdout.contains("Observed RPM packages: 666"));
+    assert!(stdout.contains("Resolved nodes: 655"));
+    assert!(stdout.contains("Conflicts: 11"));
+    assert!(stdout.contains("observed multi-version RPM inventory"));
+    assert!(stdout.contains("DNF/libsolv oracle adapter"));
+}
+
+#[test]
 fn cli_access_outputs_tenant_isolation() {
     let output = Command::new(env!("CARGO_BIN_EXE_graphscope"))
         .arg("access")

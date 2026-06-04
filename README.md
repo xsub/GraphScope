@@ -30,7 +30,7 @@
 ![File Store](https://img.shields.io/badge/file%20store-durable%20MVP-0a7)
 ![Event Log](https://img.shields.io/badge/event%20log-durable%20MVP-7952b3)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-201%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-202%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Runtime Deps](https://img.shields.io/badge/runtime%20deps-rusqlite%20optional-blue)
 
@@ -127,6 +127,7 @@ cargo run -- evidence tests/fixtures/sbom/cyclonedx.json
 cargo run -- evidence examples/real-world/almalinux-10-rpm.list
 cargo run -- resolve-evidence tests/fixtures/pip/requirements.lock
 cargo run -- adapters
+cargo run -- real-world
 cargo run -- access
 cargo run -- persist /tmp/graphscope-store
 cargo run -- events /tmp/graphscope-store
@@ -157,9 +158,9 @@ AlmaLinux 10.2 x86_64 VPS:
 [examples/real-world](examples/real-world/README.md).
 
 That example includes `/etc/os-release`, enabled DNF repositories, a package-only
-RPM inventory, and GraphScope's normalized evidence output. It is real runtime
-inventory evidence, while the TuxCare product dependency graph remains a
-synthetic demo scenario.
+RPM inventory, GraphScope's normalized evidence output, and a checked-in
+`graphscope real-world` summary. It is real runtime inventory evidence, while
+the TuxCare product dependency graph remains a synthetic demo scenario.
 
 ## MVP Workflows
 
@@ -182,6 +183,8 @@ synthetic demo scenario.
   and emit a stable graph snapshot.
 - `adapters`: ecosystem adapter coverage, resolution contracts, and production
   gaps.
+- `real-world`: checked-in AlmaLinux 10 runtime inventory summary and snapshot
+  counts.
 - `access`: tenant access policy and authorized graph lookup demo.
 - `persist <dir>`: resolve and persist the demo graph snapshot into a durable
   file-backed store.

@@ -112,11 +112,13 @@ def test_real_world_almalinux_inventory_is_checked_in_and_linked() -> None:
         "dnf-repolist.txt",
         "almalinux-10-rpm.list",
         "almalinux-10-rpm-evidence.txt",
+        "almalinux-10-real-world.txt",
     ]:
         assert (artifact_root / path).is_file(), path
 
     inventory = read_text("examples/real-world/almalinux-10-rpm.list")
     evidence = read_text("examples/real-world/almalinux-10-rpm-evidence.txt")
+    real_world = read_text("examples/real-world/almalinux-10-real-world.txt")
     os_release = read_text("examples/real-world/os-release.txt")
 
     assert 'PRETTY_NAME="AlmaLinux 10.2 (Lavender Lion)"' in os_release
@@ -124,6 +126,9 @@ def test_real_world_almalinux_inventory_is_checked_in_and_linked() -> None:
     assert "Records: 666" in evidence
     assert "- rpm: 666" in evidence
     assert "- Observed: 666" in evidence
+    assert "Observed RPM packages: 666" in real_world
+    assert "Resolved nodes: 655" in real_world
+    assert "Conflicts: 11" in real_world
 
 
 def test_resolution_algorithm_documents_usability_contract() -> None:

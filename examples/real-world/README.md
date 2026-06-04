@@ -14,6 +14,8 @@ included. The RPM inventory contains package names and package versions only.
 - `almalinux-10-rpm.list`: package-only inventory generated from RPM.
 - `almalinux-10-rpm-evidence.txt`: GraphScope normalized evidence output from
   the RPM inventory.
+- `almalinux-10-real-world.txt`: `graphscope real-world` summary generated from
+  the checked-in inventory.
 
 ## Capture
 
@@ -35,6 +37,12 @@ The normalized evidence output was generated from the repository root with:
 cargo run --quiet -- evidence examples/real-world/almalinux-10-rpm.list > examples/real-world/almalinux-10-rpm-evidence.txt
 ```
 
+The first-class real-world CLI artifact was generated with:
+
+```sh
+cargo run --quiet -- real-world > examples/real-world/almalinux-10-real-world.txt
+```
+
 ## Result
 
 GraphScope currently parses this as observed RPM runtime evidence:
@@ -43,3 +51,6 @@ GraphScope currently parses this as observed RPM runtime evidence:
 - `Packages`: 666
 - `Ecosystem`: `rpm`
 - `Confidence`: `Observed`
+- `Resolved nodes under the current generic RPM policy`: 655
+- `Conflicts`: 11 observed multi-version RPM records that need the DNF/libsolv
+  installonly/package-manager oracle semantics.

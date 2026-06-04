@@ -165,6 +165,7 @@
 - `cli_impact_outputs_advisory_findings`: CLI impact prints advisory findings.
 - `cli_policy_outputs_policy_violations`: CLI policy prints compliance status and policy violations.
 - `cli_persist_writes_file_store_snapshot`: CLI persist writes a durable file-store snapshot and index.
+- `cli_real_world_outputs_observed_almalinux_inventory`: CLI real-world prints checked-in AlmaLinux inventory evidence and current resolver gap counts.
 - `cli_report_outputs_remediation_markdown`: CLI report prints remediation Markdown.
 - `cli_resolve_evidence_outputs_snapshot_from_fixture`: CLI resolve-evidence emits a graph snapshot from parsed evidence.
 - `cli_sbom_outputs_cyclonedx_view`: CLI sbom prints a CycloneDX-style view.

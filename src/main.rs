@@ -1,10 +1,14 @@
 use graphscope::{
-    ChangeEvent, CycloneDxView, EvidenceSubject, FileChangeEventLog, FileGraphStore, GraphDiff,
-    GraphQuery, GraphSnapshot, ImpactReport, InMemoryGraphStore, ProjectEvidence,
-    RemediationReport, Resolver, ResolverJob, ResolverService, RiskDashboard, SlaSummary, SpdxView,
-    TenantAccessPolicy, TenantRole, VexView, adapter_profiles, adapter_resolution_contract,
-    demo_advisories, demo_policy_set, demo_repository, parse_evidence,
+    ChangeEvent, CycloneDxView, EvidenceRepositoryBuilder, EvidenceSubject, FileChangeEventLog,
+    FileGraphStore, GraphDiff, GraphQuery, GraphSnapshot, ImpactReport, InMemoryGraphStore,
+    ProjectEvidence, RemediationReport, Resolver, ResolverJob, ResolverService, RiskDashboard,
+    SlaSummary, SpdxView, TenantAccessPolicy, TenantRole, VexView, adapter_profiles,
+    adapter_resolution_contract, demo_advisories, demo_policy_set, demo_repository, parse_evidence,
 };
+
+const REAL_WORLD_RPM_INVENTORY: &str = include_str!("../examples/real-world/almalinux-10-rpm.list");
+const REAL_WORLD_OS_RELEASE: &str = include_str!("../examples/real-world/os-release.txt");
+const REAL_WORLD_DNF_REPOLIST: &str = include_str!("../examples/real-world/dnf-repolist.txt");
 
 fn main() {
     let args = std::env::args().collect::<Vec<_>>();
@@ -31,6 +35,7 @@ fn main() {
                 .as_slice(),
         ),
         "adapters" => print_adapters(),
+        "real-world" => print_real_world(),
         "access" => print_access(),
         "persist" => persist_demo(args.get(2).map(String::as_str)),
         "events" => persist_demo_events(args.get(2).map(String::as_str)),
@@ -63,6 +68,7 @@ fn print_help() {
     println!("  graphscope evidence <path>   normalize a manifest, lockfile, or inventory");
     println!("  graphscope resolve-evidence <path...>   resolve evidence files into a snapshot");
     println!("  graphscope adapters   show ecosystem adapter coverage");
+    println!("  graphscope real-world   summarize checked-in AlmaLinux runtime evidence");
     println!("  graphscope access   demonstrate tenant access isolation");
     println!("  graphscope persist <dir>   persist the demo graph snapshot to a file store");
     println!("  graphscope events <dir>   append demo invalidation events to a file log");
@@ -370,7 +376,7 @@ fn print_resolve_evidence(paths: &[&str]) {
     }
 
     let evidence = ProjectEvidence::from_catalogs(catalogs);
-    let input = graphscope::EvidenceRepositoryBuilder::new().build(&evidence);
+    let input = EvidenceRepositoryBuilder::new().build(&evidence);
     let context = graphscope::ResolutionContext::cloudlinux_production_x86_64();
     let result = Resolver::new(input.repository).resolve(input.roots, &context);
     let snapshot = GraphSnapshot::from_resolve_result(
@@ -381,6 +387,57 @@ fn print_resolve_evidence(paths: &[&str]) {
     );
 
     println!("{}", snapshot.to_json_pretty());
+}
+
+fn print_real_world() {
+    let locator = "examples/real-world/almalinux-10-rpm.list";
+    let catalog = parse_evidence(REAL_WORLD_RPM_INVENTORY, locator).unwrap_or_else(|error| {
+        eprintln!("failed to parse checked-in real-world evidence: {error}");
+        std::process::exit(2);
+    });
+    let summary = catalog.summary();
+    let evidence = ProjectEvidence::from_catalog(catalog);
+    let input = EvidenceRepositoryBuilder::new().build(&evidence);
+    let context = graphscope::ResolutionContext::cloudlinux_production_x86_64();
+    let result = Resolver::new(input.repository).resolve(input.roots, &context);
+    let snapshot = GraphSnapshot::from_resolve_result(
+        "almalinux-10-observed-rpm-inventory",
+        env!("CARGO_PKG_VERSION"),
+        &context,
+        &result,
+    );
+    let source_os = REAL_WORLD_OS_RELEASE
+        .lines()
+        .find(|line| line.starts_with("PRETTY_NAME="))
+        .unwrap_or("PRETTY_NAME=\"AlmaLinux 10\"");
+    let enabled_repositories = REAL_WORLD_DNF_REPOLIST
+        .lines()
+        .filter(|line| {
+            let line = line.trim();
+            !line.is_empty() && !line.starts_with("repo id")
+        })
+        .count();
+    let observed = summary.by_confidence.get("Observed").copied().unwrap_or(0);
+
+    println!("GraphScope real-world AlmaLinux evidence");
+    println!("Source OS: {source_os}");
+    println!("Inventory: {locator}");
+    println!("Enabled repositories: {enabled_repositories}");
+    println!("Records: {}", summary.total_records);
+    println!("Observed RPM packages: {observed}");
+    println!("Resolved snapshot: {}", snapshot.id);
+    println!("Resolved nodes: {}", result.nodes.len());
+    println!("Resolved root edges: {}", result.edges.len());
+    println!("Conflicts: {}", result.conflicts.len());
+    println!("Skipped dependencies: {}", result.skipped.len());
+    if !result.conflicts.is_empty() {
+        println!(
+            "Resolver note: conflicts indicate observed multi-version RPM inventory that still needs installonly/package-manager semantics from the DNF/libsolv oracle."
+        );
+    }
+    println!(
+        "Note: this is real observed runtime inventory; transitive RPM solving still requires the DNF/libsolv oracle adapter."
+    );
 }
 
 fn print_counts(label: &str, counts: &std::collections::BTreeMap<String, usize>) {

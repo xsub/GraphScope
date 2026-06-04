@@ -1,0 +1,13 @@
+GraphScope real-world AlmaLinux evidence
+Source OS: PRETTY_NAME="AlmaLinux 10.2 (Lavender Lion)"
+Inventory: examples/real-world/almalinux-10-rpm.list
+Enabled repositories: 6
+Records: 666
+Observed RPM packages: 666
+Resolved snapshot: snap-5686d2d258d3cac8
+Resolved nodes: 655
+Resolved root edges: 655
+Conflicts: 11
+Skipped dependencies: 0
+Resolver note: conflicts indicate observed multi-version RPM inventory that still needs installonly/package-manager semantics from the DNF/libsolv oracle.
+Note: this is real observed runtime inventory; transitive RPM solving still requires the DNF/libsolv oracle adapter.
