@@ -38,6 +38,7 @@
 - `hypergraph::tests::hypergraph_clause_preserves_alternative_targets`: Hypergraph clauses preserve multiple provider or alternative targets.
 - `hypergraph::tests::hypergraph_filters_clauses_by_context_before_traversal`: Hypergraph activation filters clauses before resolved traversal.
 - `hypergraph::tests::resolved_projection_builds_forward_and_reverse_occurrence_indexes`: Resolved graph projection builds forward and reverse occurrence indexes.
+- `hypergraph::tests::resolved_projection_returns_occurrence_paths_with_evidence`: Resolved graph projection returns occurrence paths with edge evidence.
 - `ingest::tests::detects_supported_evidence_formats`: Ingestion detects supported evidence formats from locators.
 - `ingest::tests::parse_evidence_dispatches_cyclonedx_sbom`: Ingestion dispatch parses CycloneDX SBOM evidence.
 - `ingest::tests::parse_evidence_dispatches_npm_package_lock`: Ingestion dispatch parses npm package-lock evidence.
@@ -105,6 +106,7 @@
 - `query::tests::diff_reports_added_removed_and_changed_packages`: Graph diff reports added, removed, and changed packages.
 - `query::tests::query_explains_selected_package_with_trace_events`: Graph query explains selected packages with trace events.
 - `query::tests::query_finds_dependency_paths_and_reverse_dependents`: Graph query finds dependency paths and reverse dependents.
+- `query::tests::query_returns_occurrence_paths_for_package`: Graph query returns occurrence paths for a package using projection indexes.
 - `query::tests::query_returns_skipped_reasons_for_inactive_dependency`: Graph query returns skipped reasons for inactive dependencies.
 - `repository::tests::added_candidates_are_sorted_by_version`: Repository returns candidates sorted by version.
 - `repository::tests::empty_repository_returns_no_candidates`: Empty repository returns no package candidates.
@@ -138,6 +140,7 @@
 - `resolver::tests::unresolved_transitive_dependency_keeps_resolved_parent_and_reports_conflict`: Missing transitive dependency keeps parent and reports conflict.
 - `snapshot::tests::snapshot_id_is_stable_for_same_graph`: Graph snapshots produce stable IDs for identical graphs.
 - `snapshot::tests::snapshot_json_contains_nodes_edges_skipped_and_conflicts`: Snapshot JSON includes nodes, edges, skipped dependencies, conflicts, and trace.
+- `snapshot::tests::snapshot_json_contains_occurrence_projection`: Snapshot JSON includes occurrence nodes and occurrence edges.
 - `snapshot::tests::snapshot_json_contains_trace_decision_details`: Snapshot JSON includes resolver trace decision details.
 - `snapshot::tests::snapshot_json_escapes_evidence_strings`: Snapshot JSON escapes evidence text safely.
 - `snapshot::tests::snapshot_json_keeps_commas_inside_string_values`: Snapshot JSON preserves commas inside string values.

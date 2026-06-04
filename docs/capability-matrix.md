@@ -16,8 +16,9 @@ Status values:
 
 | Surface | Status | Evidence | Production Gap |
 | --- | --- | --- | --- |
-| Hypergraph/projection model | implemented | `src/hypergraph.rs` | Feed all parsed evidence through clauses before resolution. |
+| Hypergraph/projection model | implemented | `src/hypergraph.rs`, `OccurrencePath`, `ResolvedGraphProjection` | Feed all parsed evidence through clauses before resolution. |
 | Shared resolver trace | implemented | `src/resolver.rs` | Native ecosystem adapters must supply exact candidates and mediation. |
+| Snapshot occurrence projection | implemented | `GraphSnapshot`, `GraphQuery::occurrence_paths_to` | Add richer artifact metadata, adapter versions, policy hashes, and repository snapshot IDs. |
 | File snapshot store | implemented | `src/storage.rs` | Not a concurrent authoritative database. |
 | Change event log | implemented | `src/storage.rs` | No external event bus or transactional database yet. |
 | Policy/report/export views | implemented | `src/policy.rs`, `src/export.rs` | Schema validators and richer external metadata are deferred. |

@@ -1,4 +1,5 @@
 use crate::evidence::stable_hash;
+use crate::hypergraph::ResolvedGraphProjection;
 use crate::model::{ResolutionContext, Version};
 use crate::resolver::ResolveResult;
 
@@ -22,10 +23,12 @@ impl GraphSnapshot {
         let resolver_version = resolver_version.into();
         let context_json = context_json(context);
         let context_hash = format!("ctx-{:016x}", stable_hash(&context_json));
+        let context_key = context.stable_key();
         let json_body = snapshot_body_json(
             &name,
             &resolver_version,
             &context_hash,
+            &context_key,
             &context_json,
             result,
         );
@@ -53,6 +56,7 @@ fn snapshot_body_json(
     name: &str,
     resolver_version: &str,
     context_hash: &str,
+    context_key: &str,
     context_json: &str,
     result: &ResolveResult,
 ) -> String {
@@ -103,6 +107,20 @@ fn snapshot_body_json(
             ))
     });
 
+    let projection = ResolvedGraphProjection::from_resolve_result(context_key, result);
+    let mut occurrences = projection.occurrences.values().collect::<Vec<_>>();
+    occurrences.sort_by(|left, right| left.id.cmp(&right.id));
+
+    let mut occurrence_edges = projection.edges.iter().collect::<Vec<_>>();
+    occurrence_edges.sort_by(|left, right| {
+        (&left.from, &left.to, &left.clause_id, &left.evidence).cmp(&(
+            &right.from,
+            &right.to,
+            &right.clause_id,
+            &right.evidence,
+        ))
+    });
+
     let node_json = nodes
         .iter()
         .map(|node| {
@@ -111,6 +129,38 @@ fn snapshot_body_json(
                 escape_json(&node.package.to_string()),
                 node.depth,
                 json_string_array(node.selected_by.iter().map(String::as_str))
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+
+    let occurrence_json = occurrences
+        .iter()
+        .map(|occurrence| {
+            format!(
+                "{{\"id\":\"{}\",\"package\":\"{}\",\"slot\":\"{}\",\"context_key\":\"{}\",\"artifact\":{},\"selected_by\":[{}]}}",
+                escape_json(&occurrence.id),
+                escape_json(&occurrence.package.to_string()),
+                escape_json(&occurrence.slot),
+                escape_json(&occurrence.context_key),
+                optional_json_string(occurrence.artifact.as_deref()),
+                json_string_array(occurrence.selected_by.iter().map(String::as_str))
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+
+    let occurrence_edge_json = occurrence_edges
+        .iter()
+        .map(|edge| {
+            format!(
+                "{{\"from\":{},\"to\":\"{}\",\"clause_id\":\"{}\",\"relation\":\"{}\",\"scope\":\"{}\",\"evidence\":\"{}\"}}",
+                optional_json_string(edge.from.as_deref()),
+                escape_json(&edge.to),
+                escape_json(&edge.clause_id),
+                edge.relation,
+                edge.scope,
+                escape_json(&edge.evidence)
             )
         })
         .collect::<Vec<_>>()
@@ -201,13 +251,15 @@ fn snapshot_body_json(
         .join(",");
 
     format!(
-        "\"name\":\"{}\",\"resolver_version\":\"{}\",\"context_hash\":\"{}\",\"context\":{},\"nodes\":[{}],\"edges\":[{}],\"skipped\":[{}],\"conflicts\":[{}],\"trace\":[{}]",
+        "\"name\":\"{}\",\"resolver_version\":\"{}\",\"context_hash\":\"{}\",\"context\":{},\"nodes\":[{}],\"edges\":[{}],\"occurrences\":[{}],\"occurrence_edges\":[{}],\"skipped\":[{}],\"conflicts\":[{}],\"trace\":[{}]",
         escape_json(name),
         escape_json(resolver_version),
         escape_json(context_hash),
         context_json,
         node_json,
         edge_json,
+        occurrence_json,
+        occurrence_edge_json,
         skipped_json,
         conflict_json,
         trace_json
@@ -365,6 +417,34 @@ mod tests {
         assert!(json.contains("\"active_constraints\""));
         assert!(json.contains("\"candidates_considered\""));
         assert!(json.contains("\"candidates_rejected\""));
+        assert!(json.contains("pyproject.toml:requests"));
+    }
+
+    #[test]
+    fn snapshot_json_contains_occurrence_projection() {
+        let root = PackageId::internal("app");
+        let dep = PackageId::python("requests");
+        let mut repository = InMemoryRepository::new();
+        repository.add(
+            PackageVersion::new(root.clone(), "1.0").with_dependencies(vec![
+                DependencyRequirement::new(dep.clone(), VersionRequirement::parse("^2.31.0"))
+                    .evidence("pyproject.toml:requests"),
+            ]),
+        );
+        repository.add(PackageVersion::new(dep, "2.32.3"));
+        let context = ResolutionContext::cloudlinux_production_x86_64();
+        let result = Resolver::new(repository).resolve(
+            vec![DependencyRequirement::new(root, VersionRequirement::any())],
+            &context,
+        );
+
+        let json = GraphSnapshot::from_resolve_result("occurrences", "test", &context, &result)
+            .to_json_pretty();
+
+        assert!(json.contains("\"occurrences\""));
+        assert!(json.contains("\"occurrence_edges\""));
+        assert!(json.contains("\"id\":\"occ:"));
+        assert!(json.contains("\"clause_id\":\"resolved-clause:"));
         assert!(json.contains("pyproject.toml:requests"));
     }
 

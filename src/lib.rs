@@ -29,7 +29,7 @@ pub use evidence::{
 pub use export::{CycloneDxView, RemediationReport, RiskDashboard, SlaSummary, SpdxView, VexView};
 pub use hypergraph::{
     ClauseId, ClauseSemantics, ClauseSource, DependencyAlternative, DependencyHypergraph,
-    OccurrenceId, RequirementClause, ResolvedGraphProjection, ResolvedOccurrence,
+    OccurrenceId, OccurrencePath, RequirementClause, ResolvedGraphProjection, ResolvedOccurrence,
     ResolvedOccurrenceEdge, occurrence_id,
 };
 pub use ingest::{EvidenceFormat, IngestError, parse_evidence};

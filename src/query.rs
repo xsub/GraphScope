@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
+use crate::hypergraph::{OccurrencePath, ResolvedGraphProjection};
 use crate::model::{PackageId, PackageRef};
 use crate::resolver::{ResolveResult, ResolvedEdge, ResolverTraceEvent};
 
@@ -218,6 +219,20 @@ impl<'a> GraphQuery<'a> {
             .into_iter()
             .collect()
     }
+
+    pub fn occurrence_projection(&self, context_key: impl Into<String>) -> ResolvedGraphProjection {
+        ResolvedGraphProjection::from_resolve_result(context_key, self.result)
+    }
+
+    pub fn occurrence_paths_to(
+        &self,
+        context_key: impl Into<String>,
+        package: &PackageId,
+        max_depth: usize,
+    ) -> Vec<OccurrencePath> {
+        self.occurrence_projection(context_key)
+            .paths_to_package(package, max_depth)
+    }
 }
 
 impl GraphDiff {
@@ -376,6 +391,37 @@ mod tests {
         assert_eq!(explanation.package.id, dep);
         assert!(!explanation.paths.is_empty());
         assert!(!explanation.trace_events.is_empty());
+    }
+
+    #[test]
+    fn query_returns_occurrence_paths_for_package() {
+        let app = PackageId::internal("app");
+        let dep = PackageId::npm(None::<String>, "left-pad");
+        let mut repo = InMemoryRepository::new();
+        repo.add(
+            PackageVersion::new(app.clone(), "1.0").with_dependencies(vec![
+                DependencyRequirement::new(dep.clone(), VersionRequirement::any())
+                    .evidence("package-lock.json:left-pad"),
+            ]),
+        );
+        repo.add(PackageVersion::new(dep.clone(), "1.3.0"));
+
+        let context = ResolutionContext::cloudlinux_production_x86_64();
+        let result = Resolver::new(repo).resolve(
+            vec![DependencyRequirement::new(app, VersionRequirement::any())],
+            &context,
+        );
+        let paths = GraphQuery::new(&result).occurrence_paths_to(context.stable_key(), &dep, 8);
+
+        assert_eq!(paths.len(), 1);
+        assert!(paths[0].occurrences.iter().all(|id| id.starts_with("occ:")));
+        assert_eq!(paths[0].packages.last().unwrap().id, dep);
+        assert!(
+            paths[0]
+                .evidence
+                .iter()
+                .any(|evidence| evidence.contains("package-lock.json:left-pad"))
+        );
     }
 
     #[test]

@@ -30,7 +30,7 @@
 ![File Store](https://img.shields.io/badge/file%20store-durable%20MVP-0a7)
 ![Event Log](https://img.shields.io/badge/event%20log-durable%20MVP-7952b3)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-195%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-198%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Dependency Free](https://img.shields.io/badge/runtime%20deps-0-success)
 
@@ -81,7 +81,8 @@ package:
 - executable adapter coverage and resolution-contract matrix for RPM, Python,
   Maven, Gradle, npm, Go, Cargo, and CycloneDX,
 - transitive dependency graph output,
-- stable JSON graph snapshots with resolver decision traces,
+- stable JSON graph snapshots with resolver decision traces and occurrence
+  projections,
 - conflict, skipped-dependency, and candidate-selection diagnostics,
 - graph query APIs for dependency paths, reverse dependencies, explanations, and
   graph diffs,

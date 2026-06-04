@@ -259,6 +259,11 @@ Status: required for customer-grade evidence.
 
 Goal: snapshots must preserve enough data to audit business answers.
 
+MVP progress: `GraphSnapshot` now emits resolved `occurrences` and
+`occurrence_edges`, and `GraphQuery::occurrence_paths_to` returns
+evidence-carrying occurrence paths. The remaining work is richer metadata,
+adapter identity, policy identity, and repository snapshot identity.
+
 - Expand graph snapshots to include:
   - package source, checksum, signature, purl, license, architecture, source RPM;
   - edge conditions, features, exclusions, relation, scope, confidence, and

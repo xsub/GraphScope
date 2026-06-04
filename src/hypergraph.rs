@@ -321,6 +321,23 @@ pub struct ResolvedOccurrenceEdge {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OccurrencePath {
+    pub occurrences: Vec<OccurrenceId>,
+    pub packages: Vec<PackageRef>,
+    pub evidence: Vec<String>,
+}
+
+impl OccurrencePath {
+    pub fn display(&self) -> String {
+        self.packages
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(" -> ")
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ResolvedGraphProjection {
     pub context_key: String,
     pub occurrences: BTreeMap<OccurrenceId, ResolvedOccurrence>,
@@ -407,6 +424,24 @@ impl ResolvedGraphProjection {
         self.roots.iter().cloned().collect()
     }
 
+    pub fn occurrence(&self, occurrence: &OccurrenceId) -> Option<&ResolvedOccurrence> {
+        self.occurrences.get(occurrence)
+    }
+
+    pub fn outgoing_edges(&self, occurrence: &OccurrenceId) -> Vec<&ResolvedOccurrenceEdge> {
+        self.edges
+            .iter()
+            .filter(|edge| edge.from.as_ref() == Some(occurrence))
+            .collect()
+    }
+
+    pub fn incoming_edges(&self, occurrence: &OccurrenceId) -> Vec<&ResolvedOccurrenceEdge> {
+        self.edges
+            .iter()
+            .filter(|edge| edge.to == *occurrence)
+            .collect()
+    }
+
     pub fn direct_dependencies(&self, occurrence: &OccurrenceId) -> Vec<OccurrenceId> {
         self.forward
             .get(occurrence)
@@ -459,6 +494,88 @@ impl ResolvedGraphProjection {
             .filter(|occurrence| occurrence.package.id == *package)
             .map(|occurrence| occurrence.id.clone())
             .collect()
+    }
+
+    pub fn paths_to_occurrence(
+        &self,
+        target: &OccurrenceId,
+        max_depth: usize,
+    ) -> Vec<OccurrencePath> {
+        if !self.occurrences.contains_key(target) {
+            return Vec::new();
+        }
+
+        let mut paths = Vec::new();
+        let mut queue = self
+            .roots()
+            .into_iter()
+            .map(|root| {
+                let evidence = self
+                    .edges
+                    .iter()
+                    .filter(|edge| edge.from.is_none() && edge.to == root)
+                    .map(|edge| edge.evidence.clone())
+                    .collect::<Vec<_>>();
+                (root.clone(), vec![root], evidence)
+            })
+            .collect::<VecDeque<_>>();
+
+        while let Some((current, path, evidence)) = queue.pop_front() {
+            if &current == target {
+                if let Some(path) = self.occurrence_path(path, evidence) {
+                    paths.push(path);
+                }
+                continue;
+            }
+
+            if path.len() > max_depth {
+                continue;
+            }
+
+            for edge in self.outgoing_edges(&current) {
+                if path.contains(&edge.to) {
+                    continue;
+                }
+                let mut next_path = path.clone();
+                next_path.push(edge.to.clone());
+                let mut next_evidence = evidence.clone();
+                next_evidence.push(edge.evidence.clone());
+                queue.push_back((edge.to.clone(), next_path, next_evidence));
+            }
+        }
+
+        paths.sort_by_key(OccurrencePath::display);
+        paths
+    }
+
+    pub fn paths_to_package(&self, package: &PackageId, max_depth: usize) -> Vec<OccurrencePath> {
+        let mut paths = self
+            .package_occurrences(package)
+            .into_iter()
+            .flat_map(|occurrence| self.paths_to_occurrence(&occurrence, max_depth))
+            .collect::<Vec<_>>();
+        paths.sort_by_key(OccurrencePath::display);
+        paths
+    }
+
+    fn occurrence_path(
+        &self,
+        occurrences: Vec<OccurrenceId>,
+        evidence: Vec<String>,
+    ) -> Option<OccurrencePath> {
+        let packages = occurrences
+            .iter()
+            .map(|id| {
+                self.occurrences
+                    .get(id)
+                    .map(|occurrence| occurrence.package.clone())
+            })
+            .collect::<Option<Vec<_>>>()?;
+        Some(OccurrencePath {
+            occurrences,
+            packages,
+            evidence,
+        })
     }
 }
 
@@ -582,6 +699,50 @@ mod tests {
             projection
                 .reverse_closure_from(&openssl_occurrence)
                 .contains(&root)
+        );
+    }
+
+    #[test]
+    fn resolved_projection_returns_occurrence_paths_with_evidence() {
+        let app = PackageId::internal("app");
+        let web = PackageId::python("web");
+        let openssl = PackageId::rpm("openssl-libs");
+        let mut repository = InMemoryRepository::new();
+        repository.add(
+            PackageVersion::new(app.clone(), "1.0").with_dependencies(vec![
+                DependencyRequirement::new(web.clone(), VersionRequirement::any())
+                    .evidence("manifest:web"),
+            ]),
+        );
+        repository.add(
+            PackageVersion::new(web.clone(), "2.0").with_dependencies(vec![
+                DependencyRequirement::new(openssl.clone(), VersionRequirement::any())
+                    .evidence("rpm metadata:openssl"),
+            ]),
+        );
+        repository.add(PackageVersion::new(openssl.clone(), "3.0.0"));
+
+        let context = ResolutionContext::cloudlinux_production_x86_64();
+        let result = Resolver::new(repository).resolve(
+            vec![
+                DependencyRequirement::new(app, VersionRequirement::any()).evidence("root project"),
+            ],
+            &context,
+        );
+        let projection =
+            ResolvedGraphProjection::from_resolve_result(context.stable_key(), &result);
+        let paths = projection.paths_to_package(&openssl, 8);
+
+        assert_eq!(paths.len(), 1);
+        assert!(paths[0].display().contains("python:web@2.0"));
+        assert!(paths[0].occurrences.iter().all(|id| id.starts_with("occ:")));
+        assert_eq!(
+            paths[0].evidence,
+            vec![
+                "root project".to_string(),
+                "manifest:web".to_string(),
+                "rpm metadata:openssl".to_string()
+            ]
         );
     }
 }
