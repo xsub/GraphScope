@@ -4,6 +4,9 @@
 - `adapter::tests::adapter_profiles_have_stable_cli_order`: Adapter profiles are sorted for stable CLI output.
 - `adapter::tests::adapter_profiles_mark_fixture_parsers_separately_from_native_resolvers`: Adapter profiles distinguish fixture parsers from native resolvers.
 - `adapter::tests::adapter_profiles_report_ecosystem_specific_capabilities`: Adapter profiles expose ecosystem-specific resolver capabilities.
+- `adapter::tests::adapter_resolution_contracts_cover_every_profile`: Adapter resolution contracts cover every advertised adapter profile.
+- `adapter::tests::adapter_resolution_contracts_encode_package_manager_semantics`: Adapter resolution contracts encode package-manager-specific resolver behavior.
+- `adapter::tests::adapter_resolution_contracts_expose_native_oracle_commands_and_context`: Adapter resolution contracts expose native oracle commands and context inputs.
 - `advisory::tests::advisory_matches_selected_package_version`: Advisory matching detects affected selected package versions.
 - `advisory::tests::impact_report_includes_dependency_paths_and_dependents`: Impact reports include dependency paths and reverse dependents.
 - `advisory::tests::impact_report_orders_highest_severity_first`: Impact reports order highest-severity findings first.

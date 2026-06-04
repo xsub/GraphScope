@@ -12,12 +12,12 @@
 ![TuxCare](https://img.shields.io/badge/TuxCare-supply--chain-0b7)
 ![SQLite Contract](https://img.shields.io/badge/SQLite-planned%20contract-044a64?logo=sqlite)
 ![RocksDB Deferred](https://img.shields.io/badge/RocksDB-deferred%20cache-5f4b8b)
-![RPM DNF](https://img.shields.io/badge/RPM%2FDNF-fixture%20parser-b31b1b)
-![pip Poetry](https://img.shields.io/badge/pip%2FPoetry-fixture%20parser-3776ab?logo=python)
-![Maven Gradle](https://img.shields.io/badge/Maven%2FGradle-fixture%20parser-c71a36?logo=apachemaven)
-![npm](https://img.shields.io/badge/npm-fixture%20parser-cb3837?logo=npm)
-![Go Modules](https://img.shields.io/badge/Go%20modules-fixture%20parser-00add8?logo=go)
-![Cargo](https://img.shields.io/badge/Cargo-fixture%20parser-orange?logo=rust)
+![RPM DNF](https://img.shields.io/badge/RPM%2FDNF-fixture%2Bcontract-b31b1b)
+![pip Poetry](https://img.shields.io/badge/pip%2FPoetry-fixture%2Bcontract-3776ab?logo=python)
+![Maven Gradle](https://img.shields.io/badge/Maven%2FGradle-fixture%2Bcontract-c71a36?logo=apachemaven)
+![npm](https://img.shields.io/badge/npm-fixture%2Bcontract-cb3837?logo=npm)
+![Go Modules](https://img.shields.io/badge/Go%20modules-fixture%2Bcontract-00add8?logo=go)
+![Cargo](https://img.shields.io/badge/Cargo-fixture%2Bcontract-orange?logo=rust)
 ![Adapter Matrix](https://img.shields.io/badge/adapter%20matrix-executable-0969da)
 ![CycloneDX](https://img.shields.io/badge/CycloneDX-1.6-0b7)
 ![CycloneDX Ingest](https://img.shields.io/badge/CycloneDX-ingest-0b7)
@@ -30,7 +30,7 @@
 ![File Store](https://img.shields.io/badge/file%20store-durable%20MVP-0a7)
 ![Event Log](https://img.shields.io/badge/event%20log-durable%20MVP-7952b3)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-192%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-195%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Dependency Free](https://img.shields.io/badge/runtime%20deps-0-success)
 
@@ -78,8 +78,8 @@ package:
   components,
 - auto-detecting evidence ingestion workflow for manifests, lockfiles, and RPM
   inventories,
-- executable adapter coverage matrix for RPM, Python, Maven, Gradle, npm, Go,
-  and Cargo fixture-parser capabilities plus documented production gaps,
+- executable adapter coverage and resolution-contract matrix for RPM, Python,
+  Maven, Gradle, npm, Go, Cargo, and CycloneDX,
 - transitive dependency graph output,
 - stable JSON graph snapshots with resolver decision traces,
 - conflict, skipped-dependency, and candidate-selection diagnostics,
@@ -180,7 +180,8 @@ synthetic demo scenario.
   inventory into evidence records.
 - `resolve-evidence <path...>`: auto-detect evidence files, build resolver input,
   and emit a stable graph snapshot.
-- `adapters`: ecosystem adapter coverage and production gaps.
+- `adapters`: ecosystem adapter coverage, resolution contracts, and production
+  gaps.
 - `access`: tenant access policy and authorized graph lookup demo.
 - `persist <dir>`: resolve and persist the demo graph snapshot into a durable
   file-backed store.

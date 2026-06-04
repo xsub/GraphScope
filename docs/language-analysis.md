@@ -162,9 +162,11 @@ Official references:
 The MVP fixture corpus now includes parser-level evidence coverage for pinned
 pip requirements, Go module requirements, Cargo.lock package blocks, npm
 package-lock packages, Maven POM dependency declarations, Gradle dependency
-notations, and RPM runtime inventory lines. These fixtures validate normalized
-evidence output; full package-manager-native resolution remains the production
-adapter target.
+notations, and RPM runtime inventory lines. It also includes executable
+resolution contracts for RPM/DNF, pip/Poetry, Maven, Gradle, npm, Go modules,
+Cargo, and CycloneDX so each adapter records its native oracle commands,
+selection policy, version multiplicity, semantic rules, and context inputs. Full
+package-manager-native resolution remains the production adapter target.
 
 The first production release should include conformance fixtures for:
 

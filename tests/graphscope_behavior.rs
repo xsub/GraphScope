@@ -295,6 +295,8 @@ fn cli_adapters_outputs_adapter_coverage() {
     assert!(stdout.contains("python via pip/Poetry: status=fixture parser"));
     assert!(stdout.contains("rpm via DNF/RPM: status=fixture parser"));
     assert!(stdout.contains("minimal version selection"));
+    assert!(stdout.contains("resolution: mode=native oracle required"));
+    assert!(stdout.contains("multiplicity=parallel-per-parent"));
 }
 
 #[test]

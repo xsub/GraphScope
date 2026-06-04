@@ -53,7 +53,7 @@ def test_readme_badges_reference_ci_workflows_and_platforms() -> None:
         "CloudLinux-OS",
         "SQLite-planned%20contract",
         "RocksDB-deferred%20cache",
-        "RPM%2FDNF-fixture%20parser",
+        "RPM%2FDNF-fixture%2Bcontract",
         "pytest-CI",
     ]:
         assert token in readme

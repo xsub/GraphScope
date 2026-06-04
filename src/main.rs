@@ -2,8 +2,8 @@ use graphscope::{
     ChangeEvent, CycloneDxView, EvidenceSubject, FileChangeEventLog, FileGraphStore, GraphDiff,
     GraphQuery, GraphSnapshot, ImpactReport, InMemoryGraphStore, ProjectEvidence,
     RemediationReport, Resolver, ResolverJob, ResolverService, RiskDashboard, SlaSummary, SpdxView,
-    TenantAccessPolicy, TenantRole, VexView, adapter_profiles, demo_advisories, demo_policy_set,
-    demo_repository, parse_evidence,
+    TenantAccessPolicy, TenantRole, VexView, adapter_profiles, adapter_resolution_contract,
+    demo_advisories, demo_policy_set, demo_repository, parse_evidence,
 };
 
 fn main() {
@@ -412,6 +412,15 @@ fn print_adapters() {
             "- {} via {}: status={} formats=[{}] capabilities=[{}]",
             profile.ecosystem, profile.package_manager, profile.status, formats, capabilities
         );
+        if let Some(contract) = adapter_resolution_contract(&profile.ecosystem) {
+            println!(
+                "  resolution: mode={} selection={} multiplicity={}",
+                contract.mode, contract.selection_policy, contract.multiplicity
+            );
+            if let Some(command) = contract.native_oracle_commands.first() {
+                println!("  oracle command: {command}");
+            }
+        }
         if !profile.production_gaps.is_empty() {
             println!("  production gaps: {}", profile.production_gaps.join("; "));
         }
