@@ -39,7 +39,8 @@ pub use lockfile::{
 pub use model::{
     Architecture, ArtifactMetadata, BuildProfile, ContextPredicate, DependencyRelation,
     DependencyRequirement, DependencyScope, DistroFlavor, Ecosystem, OperatingSystem, PackageId,
-    PackageRef, PackageSource, PackageVersion, ResolutionContext, Version, VersionRequirement,
+    PackageRef, PackageSource, PackageVersion, ResolutionContext, RpmCapability, RpmCapabilityKind,
+    RpmOracleEvidence, RpmPackageCoordinate, Version, VersionRequirement,
 };
 pub use platform::{
     AccessDecision, ChangeEvent, GraphRecord, InMemoryGraphStore, InvalidationPlan, ResolverJob,

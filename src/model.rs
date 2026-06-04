@@ -236,6 +236,249 @@ impl fmt::Display for PackageRef {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RpmPackageCoordinate {
+    pub name: String,
+    pub epoch: Option<u64>,
+    pub version: String,
+    pub release: String,
+    pub arch: String,
+    pub source_rpm: Option<String>,
+    pub repository_id: Option<String>,
+    pub module_stream: Option<String>,
+}
+
+impl RpmPackageCoordinate {
+    pub fn new(
+        name: impl Into<String>,
+        version: impl Into<String>,
+        release: impl Into<String>,
+        arch: impl Into<String>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            epoch: None,
+            version: version.into(),
+            release: release.into(),
+            arch: arch.into(),
+            source_rpm: None,
+            repository_id: None,
+            module_stream: None,
+        }
+    }
+
+    pub fn from_inventory_line(line: &str) -> Option<Self> {
+        let mut fields = line.split_whitespace();
+        if let (Some(name), Some(version_release_arch)) = (fields.next(), fields.next()) {
+            return Self::from_name_and_version(name, version_release_arch);
+        }
+
+        let parts = line.rsplitn(3, '-').collect::<Vec<_>>();
+        if parts.len() != 3 {
+            return None;
+        }
+        let (release, arch) = split_rpm_release_arch(parts[0]);
+        let (epoch, version) = split_rpm_epoch(parts[1]);
+        let name = parts[2];
+        if name.is_empty() || version.is_empty() || release.is_empty() {
+            return None;
+        }
+
+        Some(Self {
+            name: name.to_string(),
+            epoch,
+            version: version.to_string(),
+            release: release.to_string(),
+            arch: arch.to_string(),
+            source_rpm: None,
+            repository_id: None,
+            module_stream: None,
+        })
+    }
+
+    pub fn from_name_and_version(name: &str, version_release_arch: &str) -> Option<Self> {
+        let (version_release, arch) = split_rpm_release_arch(version_release_arch);
+        let parts = version_release.rsplitn(2, '-').collect::<Vec<_>>();
+        if parts.len() != 2 {
+            return None;
+        }
+        let release = parts[0];
+        let (epoch, version) = split_rpm_epoch(parts[1]);
+        if name.is_empty() || version.is_empty() || release.is_empty() {
+            return None;
+        }
+
+        Some(Self {
+            name: name.to_string(),
+            epoch,
+            version: version.to_string(),
+            release: release.to_string(),
+            arch: arch.to_string(),
+            source_rpm: None,
+            repository_id: None,
+            module_stream: None,
+        })
+    }
+
+    pub fn with_repository(mut self, repository_id: impl Into<String>) -> Self {
+        self.repository_id = Some(repository_id.into());
+        self
+    }
+
+    pub fn version_release(&self) -> String {
+        match self.epoch {
+            Some(epoch) => format!("{epoch}:{}-{}", self.version, self.release),
+            None => format!("{}-{}", self.version, self.release),
+        }
+    }
+
+    pub fn nevra(&self) -> String {
+        format!("{}-{}.{}", self.name, self.version_release(), self.arch)
+    }
+
+    pub fn package_id(&self) -> PackageId {
+        PackageId::rpm(self.name.clone())
+    }
+
+    pub fn package_ref(&self) -> PackageRef {
+        PackageRef::new(self.package_id(), Version::parse(self.version_release()))
+    }
+
+    pub fn source(&self) -> PackageSource {
+        PackageSource::RpmRepo {
+            repo: self
+                .repository_id
+                .clone()
+                .unwrap_or_else(|| "observed-runtime".to_string()),
+            epoch: self.epoch,
+            release: self.release.clone(),
+            arch: self.arch.clone(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum RpmCapabilityKind {
+    Package,
+    File,
+    Soname,
+    Virtual,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RpmCapability {
+    pub kind: RpmCapabilityKind,
+    pub name: String,
+    pub requirement: Option<VersionRequirement>,
+}
+
+impl RpmCapability {
+    pub fn package(name: impl Into<String>) -> Self {
+        Self::new(RpmCapabilityKind::Package, name)
+    }
+
+    pub fn file(path: impl Into<String>) -> Self {
+        Self::new(RpmCapabilityKind::File, path)
+    }
+
+    pub fn soname(name: impl Into<String>) -> Self {
+        Self::new(RpmCapabilityKind::Soname, name)
+    }
+
+    pub fn virtual_capability(name: impl Into<String>) -> Self {
+        Self::new(RpmCapabilityKind::Virtual, name)
+    }
+
+    pub fn new(kind: RpmCapabilityKind, name: impl Into<String>) -> Self {
+        Self {
+            kind,
+            name: name.into(),
+            requirement: None,
+        }
+    }
+
+    pub fn with_requirement(mut self, requirement: VersionRequirement) -> Self {
+        self.requirement = Some(requirement);
+        self
+    }
+}
+
+impl fmt::Display for RpmCapability {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let kind = match self.kind {
+            RpmCapabilityKind::Package => "package",
+            RpmCapabilityKind::File => "file",
+            RpmCapabilityKind::Soname => "soname",
+            RpmCapabilityKind::Virtual => "virtual",
+        };
+        match &self.requirement {
+            Some(requirement) => write!(f, "{kind}:{} {requirement}", self.name),
+            None => write!(f, "{kind}:{}", self.name),
+        }
+    }
+}
+
+fn split_rpm_epoch(value: &str) -> (Option<u64>, &str) {
+    if let Some((epoch, version)) = value.split_once(':') {
+        return (epoch.parse::<u64>().ok(), version);
+    }
+    (None, value)
+}
+
+fn split_rpm_release_arch(value: &str) -> (&str, &str) {
+    if let Some((release, arch)) = value.rsplit_once('.') {
+        if is_rpm_arch(arch) {
+            return (release, arch);
+        }
+    }
+    (value, "unknown")
+}
+
+fn is_rpm_arch(value: &str) -> bool {
+    matches!(
+        value,
+        "x86_64" | "aarch64" | "ppc64le" | "s390x" | "noarch" | "src"
+    )
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RpmOracleEvidence {
+    pub command: String,
+    pub dnf_version: String,
+    pub repositories: BTreeSet<String>,
+    pub metadata_digest: Option<String>,
+    pub options: BTreeMap<String, String>,
+    pub stdout_digest: String,
+    pub stderr_digest: Option<String>,
+}
+
+impl RpmOracleEvidence {
+    pub fn stable_key(&self) -> String {
+        let repositories = self
+            .repositories
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(",");
+        let options = self
+            .options
+            .iter()
+            .map(|(name, value)| format!("{name}={value}"))
+            .collect::<Vec<_>>()
+            .join(",");
+        format!(
+            "command={};dnf={};repos=[{}];metadata={};options=[{}];stdout={};stderr={}",
+            self.command,
+            self.dnf_version,
+            repositories,
+            self.metadata_digest.as_deref().unwrap_or(""),
+            options,
+            self.stdout_digest,
+            self.stderr_digest.as_deref().unwrap_or("")
+        )
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct VersionRequirement {
     pub clauses: Vec<VersionClause>,
@@ -959,6 +1202,70 @@ mod tests {
             PackageId::maven("org.slf4j", "slf4j-api").purl_like(),
             "maven/org.slf4j:slf4j-api"
         );
+    }
+
+    #[test]
+    fn rpm_coordinate_parses_nevra_inventory_shapes() {
+        let spaced =
+            RpmPackageCoordinate::from_inventory_line("kernelcare-agent 3.1.4-1.el9.x86_64")
+                .unwrap();
+        let compact =
+            RpmPackageCoordinate::from_inventory_line("openssl-libs-1:3.2.2-1.el9.x86_64").unwrap();
+
+        assert_eq!(spaced.name, "kernelcare-agent");
+        assert_eq!(spaced.version_release(), "3.1.4-1.el9");
+        assert_eq!(spaced.arch, "x86_64");
+        assert_eq!(compact.epoch, Some(1));
+        assert_eq!(
+            compact.package_ref().to_string(),
+            "rpm:openssl-libs@1:3.2.2-1.el9"
+        );
+        assert_eq!(
+            compact.with_repository("baseos").source(),
+            PackageSource::RpmRepo {
+                repo: "baseos".to_string(),
+                epoch: Some(1),
+                release: "1.el9".to_string(),
+                arch: "x86_64".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn rpm_capability_distinguishes_package_file_soname_and_virtual_provides() {
+        let package = RpmCapability::package("openssl-libs")
+            .with_requirement(VersionRequirement::parse(">=3.0"));
+        let file = RpmCapability::file("/usr/bin/python3");
+        let soname = RpmCapability::soname("libssl.so.3()(64bit)");
+        let virtual_capability = RpmCapability::virtual_capability("webserver");
+
+        assert_eq!(package.to_string(), "package:openssl-libs >=3.0");
+        assert_eq!(file.to_string(), "file:/usr/bin/python3");
+        assert_eq!(soname.to_string(), "soname:libssl.so.3()(64bit)");
+        assert_eq!(virtual_capability.to_string(), "virtual:webserver");
+    }
+
+    #[test]
+    fn rpm_oracle_evidence_key_records_solver_context() {
+        let evidence = RpmOracleEvidence {
+            command: "dnf repoquery --requires openssl-libs".to_string(),
+            dnf_version: "dnf5 5.2.0".to_string(),
+            repositories: BTreeSet::from(["baseos".to_string(), "appstream".to_string()]),
+            metadata_digest: Some("repomd:abc123".to_string()),
+            options: BTreeMap::from([
+                ("best".to_string(), "true".to_string()),
+                ("install_weak_deps".to_string(), "false".to_string()),
+            ]),
+            stdout_digest: "stdout:123".to_string(),
+            stderr_digest: Some("stderr:empty".to_string()),
+        };
+
+        let key = evidence.stable_key();
+
+        assert!(key.contains("dnf5 5.2.0"));
+        assert!(key.contains("repos=[appstream,baseos]"));
+        assert!(key.contains("install_weak_deps=false"));
+        assert!(key.contains("stdout=stdout:123"));
     }
 
     #[test]

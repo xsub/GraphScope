@@ -71,6 +71,9 @@
 - `model::tests::package_version_package_ref_round_trips_identity_and_version`: Package version converts to package reference without losing identity.
 - `model::tests::purl_like_format_distinguishes_plain_and_namespaced_packages`: PURL-like formatting distinguishes plain and namespaced packages.
 - `model::tests::python_package_names_are_normalized`: Python package names normalize case, dots, and underscores.
+- `model::tests::rpm_capability_distinguishes_package_file_soname_and_virtual_provides`: RPM capability model distinguishes package, file, SONAME, and virtual provides.
+- `model::tests::rpm_coordinate_parses_nevra_inventory_shapes`: RPM coordinate model parses NEVRA inventory shapes.
+- `model::tests::rpm_oracle_evidence_key_records_solver_context`: RPM oracle evidence records DNF solver context.
 - `model::tests::scope_excluded_dependency_is_inactive`: Dependency is inactive when its scope is excluded by context.
 - `model::tests::stable_release_sorts_after_prerelease`: Stable releases sort after prereleases.
 - `model::tests::tilde_requirement_limits_major_version_when_only_major_is_specified`: Single-part tilde ranges stay within the major version.

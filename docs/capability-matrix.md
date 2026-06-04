@@ -22,7 +22,7 @@ Status values:
 | Change event log | implemented | `src/storage.rs` | No external event bus or transactional database yet. |
 | Policy/report/export views | implemented | `src/policy.rs`, `src/export.rs` | Schema validators and richer external metadata are deferred. |
 | CycloneDX ingestion | fixture parser | `parse_cyclonedx_sbom` | Full dependency graph and vulnerability extensions. |
-| RPM/DNF | fixture parser | `parse_rpm_inventory`, demo resolver rules | DNF/libsolv oracle, repo metadata, provides/conflicts/weak-dep solving. |
+| RPM/DNF | fixture parser | `RpmPackageCoordinate`, `RpmCapability`, `RpmOracleEvidence`, `parse_rpm_inventory`, demo resolver rules | DNF/libsolv oracle execution, repo metadata ingest, provides/conflicts/weak-dep solving. |
 | pip/Poetry | fixture parser | `parse_pip_requirements_lock`, model markers | pip/Poetry/uv resolver output, wheel tags, indexes, extras/groups. |
 | Maven | fixture parser | `parse_maven_pom_dependencies` | Effective POM, dependency management, inheritance, dependency tree oracle. |
 | Gradle | fixture parser | `parse_gradle_dependencies` | DependencyInsight/configuration graph, variants, capabilities, lockfiles. |

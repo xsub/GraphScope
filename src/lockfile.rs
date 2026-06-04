@@ -4,8 +4,8 @@ use crate::evidence::{
     EvidenceCatalog, EvidenceConfidence, EvidenceKind, EvidenceRecord, EvidenceSource,
 };
 use crate::model::{
-    DependencyRequirement, DependencyScope, Ecosystem, PackageId, PackageRef, Version,
-    VersionRequirement,
+    DependencyRequirement, DependencyScope, Ecosystem, PackageId, PackageRef, RpmPackageCoordinate,
+    Version, VersionRequirement,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -339,21 +339,18 @@ pub fn parse_rpm_inventory(
         if line.is_empty() {
             continue;
         }
-        let Some((name, version)) = parse_rpm_inventory_line(line) else {
+        let Some(coordinate) = RpmPackageCoordinate::from_inventory_line(line) else {
             return Err(LockfileParseError::new(
                 line_number,
                 "expected RPM inventory line with name and version",
             ));
         };
-        let package = PackageRef::new(
-            PackageId::rpm(name.clone()),
-            Version::parse(version.clone()),
-        );
+        let package = coordinate.package_ref();
         catalog.add(EvidenceRecord::package(
             source.clone(),
             package,
             EvidenceConfidence::Observed,
-            format!("RPM inventory package: {name}-{version}"),
+            format!("RPM inventory package: {}", coordinate.nevra()),
         ));
     }
 
@@ -598,36 +595,6 @@ fn gradle_scope(configuration: &str) -> DependencyScope {
         "runtimeOnly" => DependencyScope::Runtime,
         _ => DependencyScope::Compile,
     }
-}
-
-fn parse_rpm_inventory_line(line: &str) -> Option<(String, String)> {
-    let mut fields = line.split_whitespace();
-    if let (Some(name), Some(version)) = (fields.next(), fields.next()) {
-        return Some((name.to_string(), strip_rpm_arch(version).to_string()));
-    }
-
-    let parts = line.rsplitn(3, '-').collect::<Vec<_>>();
-    if parts.len() != 3 {
-        return None;
-    }
-    let release = strip_rpm_arch(parts[0]);
-    let version = parts[1];
-    let name = parts[2];
-    if name.is_empty() || version.is_empty() || release.is_empty() {
-        return None;
-    }
-    Some((name.to_string(), format!("{version}-{release}")))
-}
-
-fn strip_rpm_arch(value: &str) -> &str {
-    for arch in [
-        ".x86_64", ".aarch64", ".ppc64le", ".s390x", ".noarch", ".src",
-    ] {
-        if let Some(stripped) = value.strip_suffix(arch) {
-            return stripped;
-        }
-    }
-    value
 }
 
 fn extract_json_array(input: &str, field: &str) -> Option<String> {
@@ -1019,6 +986,11 @@ mod tests {
             .count();
         assert_eq!(observed, 2);
         assert_eq!(catalog.by_package(&PackageId::rpm("openssl-libs")).len(), 1);
+        assert!(
+            catalog.by_package(&PackageId::rpm("openssl-libs"))[0]
+                .summary
+                .contains("openssl-libs-3.2.2-1.el9.x86_64")
+        );
     }
 
     #[test]
