@@ -172,6 +172,7 @@
 - `public_api_resolves_demo_graph_without_conflicts`: Public API resolves the demo graph without conflicts.
 - `test_cargo_features_expose_adapter_surfaces`: Pytest verifies Cargo feature flags expose planned adapter surfaces.
 - `test_hypergraph_model_documents_source_of_truth_and_projection`: Pytest verifies the hypergraph model documents source-of-truth and projection decisions.
+- `test_project_goals_are_tracked_and_aligned_to_model_choice`: Pytest verifies the project goals are tracked and aligned to the chosen model.
 - `test_github_workflows_exist_for_readme_badges`: Pytest verifies each README workflow badge has a backing workflow file.
 - `test_demo_artifacts_are_checked_in_and_linked`: Pytest verifies demo artifacts are checked in and linked from the README.
 - `test_real_world_almalinux_inventory_is_checked_in_and_linked`: Pytest verifies real AlmaLinux inventory evidence is checked in and linked from the README.

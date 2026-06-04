@@ -180,3 +180,29 @@ def test_hypergraph_model_documents_source_of_truth_and_projection() -> None:
 
     assert "Hypergraph Source Of Truth And Projections" in architecture
     assert "resolved occurrence graph projection" in roadmap
+
+
+def test_project_goals_are_tracked_and_aligned_to_model_choice() -> None:
+    readme = read_text("README.md")
+    goals = read_text("PROJECT_GOALS.md")
+    model = read_text("docs/hypergraph-model.md")
+
+    assert "PROJECT_GOALS.md" in readme
+    for token in [
+        "Building A Unified Dependency Graph",
+        "thousands of applications",
+        "Variable definitions",
+        "Context awareness",
+        "Tool variance",
+        "typed, context-conditioned dependency hypergraph",
+    ]:
+        assert token in goals
+
+    for token in [
+        "Goal Fit",
+        "Decision Matrix",
+        "Typed hypergraph plus resolved occurrence projections",
+        "Algorithm Shape",
+        "DNF/libsolv oracle",
+    ]:
+        assert token in model

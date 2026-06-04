@@ -26,6 +26,65 @@ The strongest model for this repository is:
 - security depth: optional FASTEN-style call graph overlay later, because package
   presence and vulnerable-code reachability are different questions.
 
+## Goal Fit
+
+This model fits `PROJECT_GOALS.md` better than the alternatives because it keeps
+each hard requirement in the right layer:
+
+- thousands of applications: immutable `ResolveRun` snapshots can be partitioned
+  by tenant, product, root, ecosystem, and context hash, then indexed for repeated
+  impact queries;
+- variable dependency definitions: `RequirementClause` stores relation, scope,
+  alternatives, provider capability, conflict meaning, optional/weak/peer state,
+  dynamic loading, bundled code, and native evidence;
+- context awareness: activation predicates and resolver context decide which
+  clauses are eligible before resolution and before traversal;
+- tool variance: package-manager adapters or oracle output enumerate candidates,
+  constraints, conflicts, and selected occurrences without forcing one universal
+  fake resolver;
+- full dependency trees: once a context-bound resolution is complete,
+  `ResolvedGraphProjection` gives deterministic forward closure, reverse impact,
+  and path explanations.
+
+## Decision Matrix
+
+| Option | Verdict | Why |
+| --- | --- | --- |
+| Plain package-version graph | Reject | Too lossy for providers, conflicts, optional features, peer dependencies, weak RPM relations, bundled/local copies, and context-conditioned edges. |
+| Graph database as source of truth | Reject | Useful for exploration, but it does not naturally own resolver semantics, hyperedges, native clauses, or package-manager provenance. |
+| SBOM-first model | Reject | Useful as an export and ingest source, but SBOMs usually describe a build or inventory view, not the unresolved resolver semantics that created it. |
+| Package-manager-only snapshots | Partial | Accurate per ecosystem, but insufficient as the universal cross-ecosystem model for CloudLinux/TuxCare impact, policy, and reporting. |
+| Generic SAT/SMT solver first | Defer | Valuable as a backstop for hard cases, but the MVP should first call or mimic native package-manager behavior and preserve adapter evidence. |
+| Typed hypergraph plus resolved occurrence projections | Choose | Preserves semantics before solving, gives deterministic graph traversal after solving, and scales naturally into CSR/CSC/query indexes. |
+
+So the top solution is not to replace the current direction. The top solution is
+to continue it and wire more inputs through it: evidence to clauses, clauses to
+native adapters, adapters to resolved occurrences, occurrences to indexed query
+views.
+
+## Algorithm Shape
+
+1. Ingest raw evidence from manifests, lockfiles, RPM inventories, repository
+   metadata, package-manager output, SBOMs, advisories, runtime observations, and
+   customer policy.
+2. Normalize evidence into `RequirementClause`, `DependencyAlternative`, package
+   candidate, artifact, advisory, and provenance records without discarding native
+   syntax.
+3. Build a `ResolveRun` from root requirements, resolver adapter identity,
+   resolver version, repository or registry snapshot, lockfile identity,
+   environment, and policy hash.
+4. Evaluate clause activation predicates against the context before candidate
+   selection.
+5. Let ecosystem adapters enumerate candidates and mediation rules. For
+   AlmaLinux and CloudLinux RPM correctness, start with a DNF/libsolv oracle
+   adapter before direct bindings.
+6. Select candidates, detect conflicts, record skipped clauses, and emit a
+   compact decision trace.
+7. Materialize `ResolvedOccurrence` nodes and `ResolvedOccurrenceEdge` records.
+8. Build forward and reverse adjacency lists for cold MVP queries.
+9. Add CSR and CSC snapshot projections when graph size makes scans expensive.
+10. Add selective reachability labels only for measured hot queries.
+
 ## Source Of Truth
 
 Do not use a graph database as the source of truth for resolver semantics.

@@ -30,7 +30,7 @@
 ![File Store](https://img.shields.io/badge/file%20store-durable%20MVP-0a7)
 ![Event Log](https://img.shields.io/badge/event%20log-durable%20MVP-7952b3)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-179%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-180%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Dependency Free](https://img.shields.io/badge/runtime%20deps-0-success)
 
@@ -209,6 +209,7 @@ synthetic demo scenario.
 ## Documentation
 
 - [Business Strategy](docs/business-strategy.md)
+- [Project Goals](PROJECT_GOALS.md)
 - [Language And Package Manager Analysis](docs/language-analysis.md)
 - [Architecture](docs/architecture.md)
 - [Hypergraph Model](docs/hypergraph-model.md)
