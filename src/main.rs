@@ -1,9 +1,10 @@
 use graphscope::{
-    ChangeEvent, CycloneDxView, EvidenceRepositoryBuilder, EvidenceSubject, FileChangeEventLog,
-    FileGraphStore, GraphDiff, GraphQuery, GraphSnapshot, ImpactReport, InMemoryGraphStore,
-    ProjectEvidence, RemediationReport, Resolver, ResolverJob, ResolverService, RiskDashboard,
-    SlaSummary, SpdxView, TenantAccessPolicy, TenantRole, VexView, adapter_profiles,
-    adapter_resolution_contract, demo_advisories, demo_policy_set, demo_repository, parse_evidence,
+    AlgorithmBenchmarkConfig, ChangeEvent, CycloneDxView, EvidenceRepositoryBuilder,
+    EvidenceSubject, FileChangeEventLog, FileGraphStore, GraphDiff, GraphQuery, GraphSnapshot,
+    ImpactReport, InMemoryGraphStore, ProjectEvidence, RemediationReport, Resolver, ResolverJob,
+    ResolverService, RiskDashboard, SlaSummary, SpdxView, TenantAccessPolicy, TenantRole, VexView,
+    adapter_profiles, adapter_resolution_contract, demo_advisories, demo_policy_set,
+    demo_repository, parse_evidence, run_algorithm_benchmark,
 };
 
 const REAL_WORLD_RPM_INVENTORY: &str = include_str!("../examples/real-world/almalinux-10-rpm.list");
@@ -41,6 +42,13 @@ fn main() {
         "events" => persist_demo_events(args.get(2).map(String::as_str)),
         "explain" => print_explain(),
         "diff" => print_diff(),
+        "benchmark" => print_benchmark(
+            args.iter()
+                .skip(2)
+                .map(String::as_str)
+                .collect::<Vec<_>>()
+                .as_slice(),
+        ),
         "help" | "--help" | "-h" => print_help(),
         unknown => {
             eprintln!("unknown command: {unknown}");
@@ -74,6 +82,9 @@ fn print_help() {
     println!("  graphscope events <dir>   append demo invalidation events to a file log");
     println!("  graphscope explain   explain why urllib3 is present in the demo graph");
     println!("  graphscope diff   compare demo graph with and without optional GPU context");
+    println!(
+        "  graphscope benchmark [layers width fanout max_paths]   benchmark graph creation and traversal"
+    );
     println!("  graphscope help   show this help");
 }
 
@@ -680,4 +691,45 @@ fn print_diff() {
             change.package, change.left_versions, change.right_versions
         );
     }
+}
+
+fn print_benchmark(args: &[&str]) {
+    let config = match parse_benchmark_config(args) {
+        Ok(config) => config,
+        Err(error) => {
+            eprintln!("benchmark configuration error: {error}");
+            std::process::exit(2);
+        }
+    };
+
+    match run_algorithm_benchmark(config) {
+        Ok(report) => println!("{}", report.to_text()),
+        Err(error) => {
+            eprintln!("benchmark failed: {error}");
+            std::process::exit(2);
+        }
+    }
+}
+
+fn parse_benchmark_config(args: &[&str]) -> Result<AlgorithmBenchmarkConfig, String> {
+    if args.is_empty() {
+        return Ok(AlgorithmBenchmarkConfig::default());
+    }
+    if args.len() != 4 {
+        return Err("expected either no arguments or: layers width fanout max_paths".to_string());
+    }
+
+    AlgorithmBenchmarkConfig {
+        layers: parse_usize_arg("layers", args[0])?,
+        width: parse_usize_arg("width", args[1])?,
+        fanout: parse_usize_arg("fanout", args[2])?,
+        max_paths: parse_usize_arg("max_paths", args[3])?,
+    }
+    .validate()
+}
+
+fn parse_usize_arg(name: &str, value: &str) -> Result<usize, String> {
+    value
+        .parse::<usize>()
+        .map_err(|error| format!("{name} must be a positive integer: {error}"))
 }

@@ -192,6 +192,9 @@ the TuxCare product dependency graph remains a synthetic demo scenario.
 - `events <dir>`: persist sample invalidation events into a replayable file log.
 - `explain`: why a demo dependency is present, including paths and trace events.
 - `diff`: graph comparison across production and production+GPU contexts.
+- `benchmark [layers width fanout max_paths]`: deterministic graph creation and
+  traversal benchmark for resolver, query index, projection, closure, and path
+  traversal timing.
 
 ## Design Principles
 

@@ -2,11 +2,12 @@ use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use graphscope::{
-    DependencyRequirement, Ecosystem, EvidenceConfidence, EvidenceRepositoryBuilder, GraphSnapshot,
-    PackageId, PackageVersion, ProjectEvidence, Resolver, VersionRequirement, demo_repository,
-    parse_cargo_lock_packages, parse_cyclonedx_sbom, parse_evidence, parse_go_mod_requirements,
-    parse_gradle_dependencies, parse_maven_pom_dependencies, parse_npm_package_lock,
-    parse_pip_requirements_lock, parse_rpm_inventory,
+    AlgorithmBenchmarkConfig, DependencyRequirement, Ecosystem, EvidenceConfidence,
+    EvidenceRepositoryBuilder, GraphSnapshot, PackageId, PackageVersion, ProjectEvidence, Resolver,
+    VersionRequirement, demo_repository, parse_cargo_lock_packages, parse_cyclonedx_sbom,
+    parse_evidence, parse_go_mod_requirements, parse_gradle_dependencies,
+    parse_maven_pom_dependencies, parse_npm_package_lock, parse_pip_requirements_lock,
+    parse_rpm_inventory, run_algorithm_benchmark,
 };
 
 #[test]
@@ -412,6 +413,21 @@ fn cli_diff_outputs_context_difference() {
 }
 
 #[test]
+fn cli_benchmark_outputs_algorithm_metrics() {
+    let output = Command::new(env!("CARGO_BIN_EXE_graphscope"))
+        .args(["benchmark", "4", "8", "3", "16"])
+        .output()
+        .expect("benchmark command should run");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("GraphScope algorithm benchmark"));
+    assert!(stdout.contains("Resolved nodes: 33"));
+    assert!(stdout.contains("Resolved edges: 81"));
+    assert!(stdout.contains("Timings microseconds:"));
+}
+
+#[test]
 fn fixture_pip_lockfile_parses_locked_packages() {
     let input = include_str!("fixtures/pip/requirements.lock");
     let catalog =
@@ -628,4 +644,20 @@ fn public_api_projects_resolved_graph_to_occurrence_traversal_indexes() {
             .is_empty()
     );
     assert_eq!(projection.edges.len(), result.edges.len());
+}
+
+#[test]
+fn public_api_runs_algorithm_benchmark_report() {
+    let report = run_algorithm_benchmark(AlgorithmBenchmarkConfig {
+        layers: 4,
+        width: 8,
+        fanout: 3,
+        max_paths: 16,
+    })
+    .unwrap();
+
+    assert_eq!(report.resolved_nodes, 33);
+    assert_eq!(report.resolved_edges, 81);
+    assert!(report.total_micros() > 0);
+    assert!(report.to_text().contains("dependency_closure"));
 }

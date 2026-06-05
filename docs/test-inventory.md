@@ -11,6 +11,9 @@
 - `advisory::tests::impact_report_includes_dependency_paths_and_dependents`: Impact reports include dependency paths and reverse dependents.
 - `advisory::tests::impact_report_orders_highest_severity_first`: Impact reports order highest-severity findings first.
 - `advisory::tests::impact_report_records_unaffected_advisories`: Impact reports preserve advisories that do not affect the graph.
+- `benchmark::tests::algorithm_benchmark_reports_deterministic_graph_shape`: Algorithm benchmark reports deterministic graph construction and traversal shape.
+- `benchmark::tests::benchmark_config_rejects_invalid_shapes`: Algorithm benchmark rejects invalid workload shapes.
+- `benchmark::tests::benchmark_text_contains_algorithm_metrics`: Algorithm benchmark text output contains graph and timing metrics.
 - `demo::tests::demo_context_enables_gpu_optional_dependency`: Demo context enables optional GPU dependency resolution.
 - `demo::tests::demo_graph_activates_gpu_extra_on_x86_64`: Demo graph includes the GPU extra on x86_64.
 - `demo::tests::demo_graph_honors_maven_exclusion`: Demo graph excludes the Maven `commons-logging` transitive dependency.
@@ -160,6 +163,7 @@
 - `storage::tests::sqlite_graph_store_persists_and_reads_snapshot_json`: SQLite graph store persists and reads immutable snapshot JSON.
 - `cli_adapters_outputs_adapter_coverage`: CLI adapters prints ecosystem adapter coverage.
 - `cli_access_outputs_tenant_isolation`: CLI access prints tenant policy and authorized lookup behavior.
+- `cli_benchmark_outputs_algorithm_metrics`: CLI benchmark prints deterministic graph creation and traversal metrics.
 - `cli_demo_outputs_dependency_graph_sections`: CLI demo prints graph sections.
 - `cli_dashboard_outputs_risk_dashboard`: CLI dashboard prints product risk dashboard JSON.
 - `cli_diff_outputs_context_difference`: CLI diff prints context-based graph differences.
@@ -194,6 +198,7 @@
 - `public_api_creates_stable_snapshot_from_resolved_graph`: Public API creates a stable graph snapshot from a resolved graph.
 - `public_api_exposes_skipped_dependency_reason`: Public API exposes skipped dependency reasons.
 - `public_api_projects_resolved_graph_to_occurrence_traversal_indexes`: Public API projects resolved graphs to occurrence traversal indexes.
+- `public_api_runs_algorithm_benchmark_report`: Public API runs the deterministic algorithm benchmark and returns graph timing metrics.
 - `public_api_resolves_parsed_evidence_catalog`: Public API resolves a graph from a parsed evidence catalog.
 - `public_api_reports_conflict_for_missing_candidate`: Public API reports missing candidate conflicts.
 - `public_api_resolves_demo_graph_without_conflicts`: Public API resolves the demo graph without conflicts.

@@ -1,5 +1,6 @@
 pub mod adapter;
 pub mod advisory;
+pub mod benchmark;
 pub mod demo;
 pub mod evidence;
 pub mod export;
@@ -22,6 +23,7 @@ pub use adapter::{
     adapter_resolution_contracts,
 };
 pub use advisory::{Advisory, AdvisorySeverity, ImpactFinding, ImpactReport, VexStatus};
+pub use benchmark::{AlgorithmBenchmarkConfig, AlgorithmBenchmarkReport, run_algorithm_benchmark};
 pub use demo::{demo_advisories, demo_policy_set, demo_repository};
 pub use evidence::{
     EvidenceCatalog, EvidenceConfidence, EvidenceKind, EvidenceRecord, EvidenceRepositoryBuilder,
