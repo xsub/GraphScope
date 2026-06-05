@@ -399,7 +399,7 @@ pub fn parse_cyclonedx_sbom(
             .or_else(|| purl.and_then(version_from_purl))
             .ok_or_else(|| LockfileParseError::new(1, "CycloneDX component missing version"))?;
         let package_id = purl
-            .and_then(|purl| package_id_from_purl(purl, &name))
+            .and_then(|purl| package_id_from_purl(purl, name))
             .unwrap_or_else(|| {
                 PackageId::new(
                     Ecosystem::Other("cyclonedx".to_string()),

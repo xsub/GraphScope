@@ -37,12 +37,15 @@
 - `export::tests::vex_view_exports_affected_and_unaffected_statements`: VEX view exports affected and not-affected statements.
 - `hypergraph::tests::hypergraph_clause_preserves_alternative_targets`: Hypergraph clauses preserve multiple provider or alternative targets.
 - `hypergraph::tests::hypergraph_filters_clauses_by_context_before_traversal`: Hypergraph activation filters clauses before resolved traversal.
+- `hypergraph::tests::projection_keeps_same_npm_version_occurrences_in_parent_slots`: Occurrence projection keeps same npm package versions distinct across parent slots.
+- `hypergraph::tests::replacing_clause_removes_stale_source_and_target_indexes`: Replacing a hypergraph clause removes stale source and target indexes.
 - `hypergraph::tests::resolved_projection_builds_forward_and_reverse_occurrence_indexes`: Resolved graph projection builds forward and reverse occurrence indexes.
 - `hypergraph::tests::resolved_projection_returns_occurrence_paths_with_evidence`: Resolved graph projection returns occurrence paths with edge evidence.
 - `ingest::tests::detects_supported_evidence_formats`: Ingestion detects supported evidence formats from locators.
 - `ingest::tests::parse_evidence_dispatches_cyclonedx_sbom`: Ingestion dispatch parses CycloneDX SBOM evidence.
 - `ingest::tests::parse_evidence_dispatches_npm_package_lock`: Ingestion dispatch parses npm package-lock evidence.
 - `ingest::tests::parse_evidence_rejects_unknown_format`: Ingestion dispatch rejects unsupported evidence formats.
+- `json::tests::json_writer_escapes_strings_and_builds_objects`: JSON writer escapes strings and builds arrays and objects.
 - `lockfile::tests::parses_cargo_lock_package_blocks`: Cargo.lock parser emits locked crate evidence.
 - `lockfile::tests::parses_cyclonedx_sbom_components`: CycloneDX SBOM parser emits resolved component evidence.
 - `lockfile::tests::parses_gradle_dependency_declarations`: Gradle parser emits declared dependency evidence.
@@ -104,6 +107,7 @@
 - `policy::tests::policy_detects_wildcard_requirements`: Policy evaluation detects wildcard dependency requirements.
 - `policy::tests::policy_requires_signed_packages_for_ecosystem`: Policy evaluation detects unsigned packages for an ecosystem.
 - `query::tests::diff_reports_added_removed_and_changed_packages`: Graph diff reports added, removed, and changed packages.
+- `query::tests::query_caps_path_enumeration_and_returns_shortest_path`: Graph query caps path enumeration and returns shortest paths.
 - `query::tests::query_explains_selected_package_with_trace_events`: Graph query explains selected packages with trace events.
 - `query::tests::query_finds_dependency_paths_and_reverse_dependents`: Graph query finds dependency paths and reverse dependents.
 - `query::tests::query_returns_occurrence_paths_for_package`: Graph query returns occurrence paths for a package using projection indexes.
@@ -115,6 +119,7 @@
 - `resolver::tests::changed_selection_prunes_orphaned_transitive_nodes`: Resolver prunes stale transitive nodes after selection changes.
 - `resolver::tests::combined_constraints_can_narrow_selected_version_without_conflict`: Resolver narrows compatible constraints without conflict.
 - `resolver::tests::conflict_diagnostic_includes_all_constraint_evidence`: Conflict diagnostics retain evidence from all constraints.
+- `resolver::tests::conflicts_relation_reports_selected_target_without_resolving_it`: Resolver treats conflict relations as constraints rather than selectable dependencies.
 - `resolver::tests::conflicting_constraints_are_reported`: Resolver reports incompatible dependency constraints.
 - `resolver::tests::context_specific_optional_gpu_dependency_is_activated_by_feature`: Resolver activates optional GPU dependency by feature and context.
 - `resolver::tests::custom_options_can_force_minimal_python_selection`: Custom resolver options can force minimal Python version selection.
@@ -128,6 +133,7 @@
 - `resolver::tests::missing_package_candidate_records_conflict`: Missing package candidates produce conflict diagnostics.
 - `resolver::tests::npm_parallel_slots_allow_different_versions_per_parent`: npm parallel slots allow different versions per parent.
 - `resolver::tests::platform_dependency_is_skipped_when_context_does_not_match`: Platform-specific dependency is skipped when context does not match.
+- `resolver::tests::provides_relation_records_metadata_without_selecting_target`: Resolver records provide relations without selecting virtual targets as dependencies.
 - `resolver::tests::python_global_slot_conflicts_on_incompatible_versions`: Python global slot reports incompatible version conflict.
 - `resolver::tests::relation_metadata_is_preserved_on_resolved_edge`: Resolved edges preserve relation and scope metadata.
 - `resolver::tests::root_dependency_skipped_by_context_creates_no_nodes`: Root dependency skipped by context creates no nodes.

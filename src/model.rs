@@ -426,10 +426,10 @@ fn split_rpm_epoch(value: &str) -> (Option<u64>, &str) {
 }
 
 fn split_rpm_release_arch(value: &str) -> (&str, &str) {
-    if let Some((release, arch)) = value.rsplit_once('.') {
-        if is_rpm_arch(arch) {
-            return (release, arch);
-        }
+    if let Some((release, arch)) = value.rsplit_once('.')
+        && is_rpm_arch(arch)
+    {
+        return (release, arch);
     }
     (value, "unknown")
 }

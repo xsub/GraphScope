@@ -4,6 +4,8 @@ use crate::hypergraph::{OccurrencePath, ResolvedGraphProjection};
 use crate::model::{PackageId, PackageRef};
 use crate::resolver::{ResolveResult, ResolvedEdge, ResolverTraceEvent};
 
+const DEFAULT_MAX_PATHS: usize = 256;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DependencyPath {
     pub packages: Vec<PackageRef>,
@@ -52,41 +54,167 @@ pub struct GraphDiff {
     pub removed_edges: Vec<EdgeKey>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PathSearchOptions {
+    pub max_depth: usize,
+    pub max_paths: usize,
+}
+
+impl PathSearchOptions {
+    pub fn new(max_depth: usize) -> Self {
+        Self {
+            max_depth,
+            max_paths: DEFAULT_MAX_PATHS,
+        }
+    }
+
+    pub fn with_max_paths(mut self, max_paths: usize) -> Self {
+        self.max_paths = max_paths;
+        self
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ResolvedGraphIndex {
+    roots: Vec<PackageRef>,
+    root_edges: BTreeMap<PackageRef, Vec<usize>>,
+    forward_edges: BTreeMap<PackageRef, Vec<usize>>,
+    reverse_edges: BTreeMap<PackageRef, Vec<usize>>,
+    packages_by_id: BTreeMap<PackageId, Vec<PackageRef>>,
+}
+
+impl ResolvedGraphIndex {
+    pub fn from_result(result: &ResolveResult) -> Self {
+        let mut index = Self::default();
+
+        for package in result.nodes.keys() {
+            index
+                .packages_by_id
+                .entry(package.id.clone())
+                .or_default()
+                .push(package.clone());
+        }
+
+        for (edge_index, edge) in result.edges.iter().enumerate() {
+            if let Some(from) = &edge.from {
+                index
+                    .forward_edges
+                    .entry(from.clone())
+                    .or_default()
+                    .push(edge_index);
+                index
+                    .reverse_edges
+                    .entry(edge.to.clone())
+                    .or_default()
+                    .push(edge_index);
+            } else {
+                index
+                    .root_edges
+                    .entry(edge.to.clone())
+                    .or_default()
+                    .push(edge_index);
+            }
+        }
+
+        index.roots = index.root_edges.keys().cloned().collect();
+        index.roots.sort();
+        for packages in index.packages_by_id.values_mut() {
+            packages.sort();
+        }
+
+        index
+    }
+}
+
 pub struct GraphQuery<'a> {
     result: &'a ResolveResult,
+    index: ResolvedGraphIndex,
 }
 
 impl<'a> GraphQuery<'a> {
     pub fn new(result: &'a ResolveResult) -> Self {
-        Self { result }
+        Self {
+            result,
+            index: ResolvedGraphIndex::from_result(result),
+        }
     }
 
     pub fn roots(&self) -> Vec<PackageRef> {
-        let mut roots = self
-            .result
-            .edges
-            .iter()
-            .filter(|edge| edge.from.is_none())
-            .map(|edge| edge.to.clone())
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .collect::<Vec<_>>();
-        roots.sort();
-        roots
+        self.index.roots.clone()
     }
 
     pub fn direct_dependencies(&self, package: &PackageRef) -> Vec<PackageRef> {
         let mut dependencies = self
-            .result
-            .edges
-            .iter()
-            .filter(|edge| edge.from.as_ref() == Some(package))
+            .edge_indexes_for(&self.index.forward_edges, package)
             .map(|edge| edge.to.clone())
             .collect::<BTreeSet<_>>()
             .into_iter()
             .collect::<Vec<_>>();
         dependencies.sort();
         dependencies
+    }
+
+    pub fn direct_dependency_edges(&self, package: &PackageRef) -> Vec<&ResolvedEdge> {
+        self.edge_indexes_for(&self.index.forward_edges, package)
+            .collect()
+    }
+
+    pub fn root_edges(&self, package: &PackageRef) -> Vec<&ResolvedEdge> {
+        self.edge_indexes_for(&self.index.root_edges, package)
+            .collect()
+    }
+
+    fn edge_indexes_for<'b>(
+        &'b self,
+        index: &'b BTreeMap<PackageRef, Vec<usize>>,
+        package: &PackageRef,
+    ) -> impl Iterator<Item = &'b ResolvedEdge> + 'b {
+        index.get(package).into_iter().flat_map(|indexes| {
+            indexes
+                .iter()
+                .map(|edge_index| &self.result.edges[*edge_index])
+        })
+    }
+
+    fn packages_for_id(&self, package: &PackageId) -> impl Iterator<Item = &PackageRef> {
+        self.index
+            .packages_by_id
+            .get(package)
+            .into_iter()
+            .flat_map(|packages| packages.iter())
+    }
+
+    fn root_evidence(&self, root: &PackageRef) -> Vec<String> {
+        self.root_edges(root)
+            .into_iter()
+            .map(|edge| edge.requirement.evidence.clone())
+            .collect()
+    }
+
+    fn incoming_edges(&self, package: &PackageRef) -> Vec<&ResolvedEdge> {
+        self.edge_indexes_for(&self.index.reverse_edges, package)
+            .collect()
+    }
+
+    fn outgoing_edges(&self, package: &PackageRef) -> Vec<&ResolvedEdge> {
+        self.edge_indexes_for(&self.index.forward_edges, package)
+            .collect()
+    }
+
+    pub fn selected_versions(&self, package: &PackageId) -> Vec<PackageRef> {
+        self.packages_for_id(package).cloned().collect()
+    }
+
+    pub fn direct_dependents(&self, package: &PackageId) -> Vec<PackageRef> {
+        let mut dependents = self
+            .packages_for_id(package)
+            .flat_map(|selected| self.incoming_edges(selected))
+            .filter_map(|edge| edge.from.clone())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        dependents.sort();
+        dependents
     }
 
     pub fn dependency_closure(&self) -> Vec<PackageRef> {
@@ -106,17 +234,11 @@ impl<'a> GraphQuery<'a> {
 
     pub fn reverse_dependencies(&self, package: &PackageId) -> Vec<PackageRef> {
         let mut visited = BTreeSet::new();
-        let mut queue = self
-            .result
-            .edges
-            .iter()
-            .filter(|edge| edge.to.id == *package)
-            .filter_map(|edge| edge.from.clone())
-            .collect::<VecDeque<_>>();
+        let mut queue = VecDeque::from(self.direct_dependents(package));
 
         while let Some(dependent) = queue.pop_front() {
             if visited.insert(dependent.clone()) {
-                for edge in self.result.edges.iter().filter(|edge| edge.to == dependent) {
+                for edge in self.incoming_edges(&dependent) {
                     if let Some(parent) = &edge.from {
                         queue.push_back(parent.clone());
                     }
@@ -128,18 +250,34 @@ impl<'a> GraphQuery<'a> {
     }
 
     pub fn paths_to(&self, package: &PackageId, max_depth: usize) -> Vec<DependencyPath> {
+        self.paths_to_capped(package, PathSearchOptions::new(max_depth))
+    }
+
+    pub fn shortest_path_to(
+        &self,
+        package: &PackageId,
+        max_depth: usize,
+    ) -> Option<DependencyPath> {
+        self.paths_to_capped(package, PathSearchOptions::new(max_depth).with_max_paths(1))
+            .into_iter()
+            .next()
+    }
+
+    pub fn paths_to_capped(
+        &self,
+        package: &PackageId,
+        options: PathSearchOptions,
+    ) -> Vec<DependencyPath> {
+        if options.max_paths == 0 {
+            return Vec::new();
+        }
+
         let mut paths = Vec::new();
         let mut queue = self
             .roots()
             .into_iter()
             .map(|root| {
-                let evidence = self
-                    .result
-                    .edges
-                    .iter()
-                    .find(|edge| edge.from.is_none() && edge.to == root)
-                    .map(|edge| vec![edge.requirement.evidence.clone()])
-                    .unwrap_or_default();
+                let evidence = self.root_evidence(&root);
                 (root.clone(), vec![root], evidence)
             })
             .collect::<VecDeque<_>>();
@@ -150,19 +288,17 @@ impl<'a> GraphQuery<'a> {
                     packages: path,
                     evidence,
                 });
+                if paths.len() >= options.max_paths {
+                    break;
+                }
                 continue;
             }
 
-            if path.len() > max_depth {
+            if path.len().saturating_sub(1) >= options.max_depth {
                 continue;
             }
 
-            for edge in self
-                .result
-                .edges
-                .iter()
-                .filter(|edge| edge.from.as_ref() == Some(&current))
-            {
+            for edge in self.outgoing_edges(&current) {
                 if path.contains(&edge.to) {
                     continue;
                 }
@@ -368,6 +504,41 @@ mod tests {
                 .iter()
                 .any(|package| package.id == web)
         );
+    }
+
+    #[test]
+    fn query_caps_path_enumeration_and_returns_shortest_path() {
+        let app = PackageId::internal("app");
+        let left = PackageId::python("left");
+        let right = PackageId::python("right");
+        let shared = PackageId::python("shared");
+        let mut repo = InMemoryRepository::new();
+        repo.add(
+            PackageVersion::new(app.clone(), "1.0").with_dependencies(vec![
+                DependencyRequirement::new(left.clone(), VersionRequirement::any()),
+                DependencyRequirement::new(right.clone(), VersionRequirement::any()),
+            ]),
+        );
+        repo.add(PackageVersion::new(left, "1.0").with_dependencies(vec![
+            DependencyRequirement::new(shared.clone(), VersionRequirement::any())
+                .evidence("left path"),
+        ]));
+        repo.add(PackageVersion::new(right, "1.0").with_dependencies(vec![
+            DependencyRequirement::new(shared.clone(), VersionRequirement::any())
+                .evidence("right path"),
+        ]));
+        repo.add(PackageVersion::new(shared.clone(), "1.0"));
+        let result = Resolver::new(repo).resolve(
+            vec![DependencyRequirement::new(app, VersionRequirement::any())],
+            &ResolutionContext::cloudlinux_production_x86_64(),
+        );
+        let query = GraphQuery::new(&result);
+
+        let capped = query.paths_to_capped(&shared, PathSearchOptions::new(8).with_max_paths(1));
+        let shortest = query.shortest_path_to(&shared, 8).unwrap();
+
+        assert_eq!(capped.len(), 1);
+        assert_eq!(shortest.packages.len(), 3);
     }
 
     #[test]

@@ -1,5 +1,7 @@
 use crate::advisory::{ImpactReport, VexStatus};
+use crate::json::JsonValue as Json;
 use crate::policy::{PolicyEvaluation, PolicySeverity};
+use crate::query::GraphQuery;
 use crate::resolver::ResolveResult;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -13,45 +15,52 @@ impl CycloneDxView {
         let name = name.into();
         let mut packages = result.nodes.keys().cloned().collect::<Vec<_>>();
         packages.sort();
-
-        let components = packages
-            .iter()
-            .map(|package| {
-                format!(
-                    "{{\"type\":\"library\",\"bom-ref\":\"{}\",\"name\":\"{}\",\"version\":\"{}\",\"purl\":\"pkg:{}\"}}",
-                    escape_json(&package.to_string()),
-                    escape_json(&package.id.name),
-                    escape_json(&package.version.to_string()),
-                    escape_json(&package.id.purl_like())
-                )
-            })
-            .collect::<Vec<_>>()
-            .join(",");
-        let dependencies = packages
-            .iter()
-            .map(|package| {
-                let depends_on = result
-                    .edges
-                    .iter()
-                    .filter(|edge| edge.from.as_ref() == Some(package))
-                    .map(|edge| edge.to.to_string())
-                    .collect::<Vec<_>>();
-                format!(
-                    "{{\"ref\":\"{}\",\"dependsOn\":[{}]}}",
-                    escape_json(&package.to_string()),
-                    json_string_array(depends_on.iter().map(String::as_str))
-                )
-            })
-            .collect::<Vec<_>>()
-            .join(",");
+        let query = GraphQuery::new(result);
 
         Self {
-            json: format!(
-                "{{\"bomFormat\":\"CycloneDX\",\"specVersion\":\"1.6\",\"metadata\":{{\"component\":{{\"type\":\"application\",\"name\":\"{}\"}}}},\"components\":[{}],\"dependencies\":[{}]}}",
-                escape_json(&name),
-                components,
-                dependencies
-            ),
+            json: Json::object([
+                ("bomFormat", Json::string("CycloneDX")),
+                ("specVersion", Json::string("1.6")),
+                (
+                    "metadata",
+                    Json::object([(
+                        "component",
+                        Json::object([
+                            ("type", Json::string("application")),
+                            ("name", Json::string(name.clone())),
+                        ]),
+                    )]),
+                ),
+                (
+                    "components",
+                    Json::array(packages.iter().map(|package| {
+                        Json::object([
+                            ("type", Json::string("library")),
+                            ("bom-ref", Json::string(package.to_string())),
+                            ("name", Json::string(package.id.name.clone())),
+                            ("version", Json::string(package.version.to_string())),
+                            (
+                                "purl",
+                                Json::string(format!("pkg:{}", package.id.purl_like())),
+                            ),
+                        ])
+                    })),
+                ),
+                (
+                    "dependencies",
+                    Json::array(packages.iter().map(|package| {
+                        let depends_on = query
+                            .direct_dependencies(package)
+                            .into_iter()
+                            .map(|dependency| dependency.to_string());
+                        Json::object([
+                            ("ref", Json::string(package.to_string())),
+                            ("dependsOn", Json::string_array(depends_on)),
+                        ])
+                    })),
+                ),
+            ])
+            .to_json(),
             name,
         }
     }
@@ -72,41 +81,64 @@ impl SpdxView {
         let name = name.into();
         let mut packages = result.nodes.keys().cloned().collect::<Vec<_>>();
         packages.sort();
-        let package_json = packages
-            .iter()
-            .map(|package| {
-                format!(
-                    "{{\"SPDXID\":\"SPDXRef-Package-{}\",\"name\":\"{}\",\"versionInfo\":\"{}\",\"downloadLocation\":\"NOASSERTION\",\"filesAnalyzed\":false}}",
-                    spdx_id(&package.to_string()),
-                    escape_json(&package.id.name),
-                    escape_json(&package.version.to_string())
-                )
-            })
-            .collect::<Vec<_>>()
-            .join(",");
-        let relationship_json = result
-            .edges
-            .iter()
-            .filter_map(|edge| {
-                edge.from.as_ref().map(|from| {
-                    format!(
-                        "{{\"spdxElementId\":\"SPDXRef-Package-{}\",\"relationshipType\":\"DEPENDS_ON\",\"relatedSpdxElement\":\"SPDXRef-Package-{}\"}}",
-                        spdx_id(&from.to_string()),
-                        spdx_id(&edge.to.to_string())
-                    )
+        let query = GraphQuery::new(result);
+        let relationships = packages.iter().flat_map(|package| {
+            query
+                .direct_dependency_edges(package)
+                .into_iter()
+                .map(|edge| {
+                    Json::object([
+                        (
+                            "spdxElementId",
+                            Json::string(format!(
+                                "SPDXRef-Package-{}",
+                                spdx_id(&package.to_string())
+                            )),
+                        ),
+                        ("relationshipType", Json::string("DEPENDS_ON")),
+                        (
+                            "relatedSpdxElement",
+                            Json::string(format!(
+                                "SPDXRef-Package-{}",
+                                spdx_id(&edge.to.to_string())
+                            )),
+                        ),
+                    ])
                 })
-            })
-            .collect::<Vec<_>>()
-            .join(",");
+                .collect::<Vec<_>>()
+        });
 
         Self {
-            json: format!(
-                "{{\"spdxVersion\":\"SPDX-2.3\",\"dataLicense\":\"CC0-1.0\",\"SPDXID\":\"SPDXRef-DOCUMENT\",\"name\":\"{}\",\"documentNamespace\":\"https://graphscope.local/spdx/{}\",\"packages\":[{}],\"relationships\":[{}]}}",
-                escape_json(&name),
-                spdx_id(&name),
-                package_json,
-                relationship_json
-            ),
+            json: Json::object([
+                ("spdxVersion", Json::string("SPDX-2.3")),
+                ("dataLicense", Json::string("CC0-1.0")),
+                ("SPDXID", Json::string("SPDXRef-DOCUMENT")),
+                ("name", Json::string(name.clone())),
+                (
+                    "documentNamespace",
+                    Json::string(format!("https://graphscope.local/spdx/{}", spdx_id(&name))),
+                ),
+                (
+                    "packages",
+                    Json::array(packages.iter().map(|package| {
+                        Json::object([
+                            (
+                                "SPDXID",
+                                Json::string(format!(
+                                    "SPDXRef-Package-{}",
+                                    spdx_id(&package.to_string())
+                                )),
+                            ),
+                            ("name", Json::string(package.id.name.clone())),
+                            ("versionInfo", Json::string(package.version.to_string())),
+                            ("downloadLocation", Json::string("NOASSERTION")),
+                            ("filesAnalyzed", Json::bool(false)),
+                        ])
+                    })),
+                ),
+                ("relationships", Json::array(relationships)),
+            ])
+            .to_json(),
             name,
         }
     }
@@ -124,45 +156,40 @@ pub struct VexView {
 
 impl VexView {
     pub fn from_impact_report(report: &ImpactReport) -> Self {
-        let affected = report
-            .findings
-            .iter()
-            .map(|finding| {
-                format!(
-                    "{{\"vulnerability\":\"{}\",\"product\":\"{}\",\"component\":\"{}\",\"status\":\"{}\",\"justification\":\"dependency graph contains affected selected package\",\"action\":\"{}\"}}",
-                    escape_json(&finding.advisory.id),
-                    escape_json(&report.product),
-                    escape_json(&finding.package.to_string()),
-                    finding.status,
-                    escape_json(&finding.remediation)
-                )
-            })
-            .collect::<Vec<_>>();
-        let unaffected = report
-            .unaffected
-            .iter()
-            .map(|advisory| {
-                format!(
-                    "{{\"vulnerability\":\"{}\",\"product\":\"{}\",\"component\":\"{}\",\"status\":\"{}\",\"justification\":\"affected package was not selected in this graph\"}}",
-                    escape_json(&advisory.id),
-                    escape_json(&report.product),
-                    escape_json(&advisory.package.to_string()),
-                    VexStatus::NotAffected
-                )
-            })
-            .collect::<Vec<_>>();
-        let statements = affected
-            .into_iter()
-            .chain(unaffected)
-            .collect::<Vec<_>>()
-            .join(",");
+        let affected = report.findings.iter().map(|finding| {
+            Json::object([
+                ("vulnerability", Json::string(finding.advisory.id.clone())),
+                ("product", Json::string(report.product.clone())),
+                ("component", Json::string(finding.package.to_string())),
+                ("status", Json::string(finding.status.to_string())),
+                (
+                    "justification",
+                    Json::string("dependency graph contains affected selected package"),
+                ),
+                ("action", Json::string(finding.remediation.clone())),
+            ])
+        });
+        let unaffected = report.unaffected.iter().map(|advisory| {
+            Json::object([
+                ("vulnerability", Json::string(advisory.id.clone())),
+                ("product", Json::string(report.product.clone())),
+                ("component", Json::string(advisory.package.to_string())),
+                ("status", Json::string(VexStatus::NotAffected.to_string())),
+                (
+                    "justification",
+                    Json::string("affected package was not selected in this graph"),
+                ),
+            ])
+        });
 
         Self {
             product: report.product.clone(),
-            json: format!(
-                "{{\"format\":\"GraphScope VEX\",\"version\":\"1\",\"statements\":[{}]}}",
-                statements
-            ),
+            json: Json::object([
+                ("format", Json::string("GraphScope VEX")),
+                ("version", Json::string("1")),
+                ("statements", Json::array(affected.chain(unaffected))),
+            ])
+            .to_json(),
         }
     }
 
@@ -229,16 +256,19 @@ impl SlaSummary {
     }
 
     pub fn to_json(&self) -> String {
-        format!(
-            "{{\"product\":\"{}\",\"affected_findings\":{},\"critical_findings\":{},\"policy_errors\":{},\"policy_warnings\":{},\"remediation_actions\":{},\"risk_score\":{}}}",
-            escape_json(&self.product),
-            self.affected_findings,
-            self.critical_findings,
-            self.policy_errors,
-            self.policy_warnings,
-            self.remediation_actions,
-            self.risk_score
-        )
+        Json::object([
+            ("product", Json::string(self.product.clone())),
+            ("affected_findings", Json::number(self.affected_findings)),
+            ("critical_findings", Json::number(self.critical_findings)),
+            ("policy_errors", Json::number(self.policy_errors)),
+            ("policy_warnings", Json::number(self.policy_warnings)),
+            (
+                "remediation_actions",
+                Json::number(self.remediation_actions),
+            ),
+            ("risk_score", Json::number(self.risk_score)),
+        ])
+        .to_json()
     }
 }
 
@@ -312,24 +342,35 @@ impl RiskDashboard {
     }
 
     pub fn to_json(&self) -> String {
-        let highest = self
-            .highest_risk_product
-            .as_ref()
-            .map(|product| format!("\"{}\"", escape_json(product)))
-            .unwrap_or_else(|| "null".to_string());
-        format!(
-            "{{\"format\":\"GraphScope Risk Dashboard\",\"product_count\":{},\"affected_products\":{},\"high_risk_products\":{},\"total_affected_findings\":{},\"total_policy_errors\":{},\"total_policy_warnings\":{},\"total_remediation_actions\":{},\"max_risk_score\":{},\"risk_band\":\"{}\",\"highest_risk_product\":{}}}",
-            self.product_count,
-            self.affected_products,
-            self.high_risk_products,
-            self.total_affected_findings,
-            self.total_policy_errors,
-            self.total_policy_warnings,
-            self.total_remediation_actions,
-            self.max_risk_score,
-            self.risk_band(),
-            highest
-        )
+        Json::object([
+            ("format", Json::string("GraphScope Risk Dashboard")),
+            ("product_count", Json::number(self.product_count)),
+            ("affected_products", Json::number(self.affected_products)),
+            ("high_risk_products", Json::number(self.high_risk_products)),
+            (
+                "total_affected_findings",
+                Json::number(self.total_affected_findings),
+            ),
+            (
+                "total_policy_errors",
+                Json::number(self.total_policy_errors),
+            ),
+            (
+                "total_policy_warnings",
+                Json::number(self.total_policy_warnings),
+            ),
+            (
+                "total_remediation_actions",
+                Json::number(self.total_remediation_actions),
+            ),
+            ("max_risk_score", Json::number(self.max_risk_score)),
+            ("risk_band", Json::string(self.risk_band())),
+            (
+                "highest_risk_product",
+                Json::optional_string(self.highest_risk_product.as_deref()),
+            ),
+        ])
+        .to_json()
     }
 }
 
@@ -374,35 +415,11 @@ impl RemediationReport {
     }
 }
 
-fn json_string_array<'a>(values: impl IntoIterator<Item = impl AsRef<str> + 'a>) -> String {
-    values
-        .into_iter()
-        .map(|value| format!("\"{}\"", escape_json(value.as_ref())))
-        .collect::<Vec<_>>()
-        .join(",")
-}
-
 fn spdx_id(value: &str) -> String {
     value
         .chars()
         .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '-' })
         .collect()
-}
-
-fn escape_json(value: &str) -> String {
-    let mut escaped = String::with_capacity(value.len());
-    for ch in value.chars() {
-        match ch {
-            '"' => escaped.push_str("\\\""),
-            '\\' => escaped.push_str("\\\\"),
-            '\n' => escaped.push_str("\\n"),
-            '\r' => escaped.push_str("\\r"),
-            '\t' => escaped.push_str("\\t"),
-            ch if ch.is_control() => escaped.push_str(&format!("\\u{:04x}", ch as u32)),
-            ch => escaped.push(ch),
-        }
-    }
-    escaped
 }
 
 #[cfg(test)]

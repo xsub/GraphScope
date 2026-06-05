@@ -5,6 +5,7 @@ pub mod evidence;
 pub mod export;
 pub mod hypergraph;
 pub mod ingest;
+mod json;
 pub mod lockfile;
 pub mod model;
 pub mod platform;
@@ -51,6 +52,7 @@ pub use platform::{
 pub use policy::{PolicyEvaluation, PolicyRule, PolicySet, PolicySeverity, PolicyViolation};
 pub use query::{
     DependencyPath, EdgeKey, GraphDiff, GraphQuery, PackageExplanation, PackageVersionChange,
+    PathSearchOptions, ResolvedGraphIndex,
 };
 pub use repository::{InMemoryRepository, PackageRepository};
 pub use resolver::{

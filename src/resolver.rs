@@ -3,8 +3,8 @@ use std::fmt;
 
 use crate::evidence::stable_hash;
 use crate::model::{
-    ActiveDecision, ArtifactMetadata, DependencyRequirement, Ecosystem, PackageId, PackageRef,
-    PackageVersion, ResolutionContext,
+    ActiveDecision, ArtifactMetadata, DependencyRelation, DependencyRequirement, Ecosystem,
+    PackageId, PackageRef, PackageVersion, ResolutionContext,
 };
 use crate::repository::PackageRepository;
 
@@ -87,13 +87,16 @@ pub struct ResolvedNode {
     pub package: PackageRef,
     pub depth: usize,
     pub selected_by: BTreeSet<String>,
+    pub selection_slots: BTreeSet<String>,
     pub metadata: ArtifactMetadata,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ResolvedEdge {
     pub from: Option<PackageRef>,
+    pub from_slot: Option<String>,
     pub to: PackageRef,
+    pub to_slot: String,
     pub requirement: DependencyRequirement,
 }
 
@@ -219,6 +222,7 @@ struct ConstraintOrigin {
 struct PendingRequirement {
     requirement: DependencyRequirement,
     requester: Option<PackageRef>,
+    requester_slot: Option<String>,
     slot_parent: String,
     depth: usize,
     inherited_exclusions: BTreeSet<PackageId>,
@@ -231,6 +235,26 @@ struct CandidateDecision {
     considered: Vec<PackageRef>,
     rejected: Vec<PackageRef>,
     rule: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct ResolvedEdgeKey {
+    from: Option<PackageRef>,
+    from_slot: Option<String>,
+    to: PackageRef,
+    to_slot: String,
+    target: PackageId,
+    requirement: String,
+    relation: DependencyRelation,
+    scope: String,
+    evidence: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum RequirementBehavior {
+    SelectsPackage,
+    RecordsProvide,
+    AppliesConflict,
 }
 
 pub struct Resolver<R> {
@@ -264,6 +288,7 @@ where
         let mut result = ResolveResult::default();
         let mut selected: BTreeMap<SelectionKey, PackageRef> = BTreeMap::new();
         let mut constraints: BTreeMap<SelectionKey, Vec<ConstraintOrigin>> = BTreeMap::new();
+        let mut edge_keys = BTreeSet::new();
         let mut expanded: BTreeSet<(PackageRef, String)> = BTreeSet::new();
         let mut trace_sequence = 0;
         let mut queue = roots
@@ -271,6 +296,7 @@ where
             .map(|requirement| PendingRequirement {
                 requirement,
                 requester: None,
+                requester_slot: None,
                 slot_parent: "root".to_string(),
                 depth: 0,
                 inherited_exclusions: BTreeSet::new(),
@@ -346,6 +372,46 @@ where
                 }
             }
 
+            match requirement_behavior(&pending.requirement) {
+                RequirementBehavior::SelectsPackage => {}
+                RequirementBehavior::RecordsProvide => {
+                    let reason =
+                        "provide relation records capability metadata without selecting a package"
+                            .to_string();
+                    result.skipped.push(SkippedDependency {
+                        requester: pending.requester.clone(),
+                        target: pending.requirement.target.clone(),
+                        requirement: pending.requirement.clone(),
+                        reason: reason.clone(),
+                    });
+                    push_trace_event(
+                        &mut result,
+                        &mut trace_sequence,
+                        ResolverTraceEvent {
+                            id: String::new(),
+                            parent_id: pending.parent_trace_id,
+                            requester: pending.requester,
+                            target: pending.requirement.target.clone(),
+                            requirement: pending.requirement.clone(),
+                            selection_slot: None,
+                            active_constraints: Vec::new(),
+                            candidates_considered: Vec::new(),
+                            candidates_rejected: Vec::new(),
+                            selected: None,
+                            outcome: ResolverTraceOutcome::Skipped,
+                            rule: "descriptive-relation=provides".to_string(),
+                            reason,
+                            evidence: pending.requirement.evidence.clone(),
+                        },
+                    );
+                    continue;
+                }
+                RequirementBehavior::AppliesConflict => {
+                    self.apply_conflict_requirement(&mut result, &mut trace_sequence, pending);
+                    continue;
+                }
+            }
+
             let selection_key =
                 self.selection_key(&pending.requirement.target, &pending.slot_parent);
             constraints
@@ -398,14 +464,13 @@ where
             };
 
             let package_ref = candidate.package_ref();
+            let occurrence_slot = occurrence_slot(&selection_key.slot, &package_ref);
             let selection_reason = match selected.get(&selection_key) {
                 None => "selected candidate for new slot",
                 Some(previous) if previous != &package_ref => {
                     "selected candidate replaced previous slot candidate"
                 }
-                Some(_)
-                    if expanded.contains(&(package_ref.clone(), selection_key.slot.clone())) =>
-                {
+                Some(_) if expanded.contains(&(package_ref.clone(), occurrence_slot.clone())) => {
                     "selected candidate; dependencies already expanded for slot"
                 }
                 Some(_) => "selected candidate; dependencies pending expansion",
@@ -416,13 +481,19 @@ where
                 &mut result,
                 &package_ref,
                 &candidate.metadata,
+                &occurrence_slot,
                 active_constraints,
             );
             self.push_edge(
                 &mut result,
-                pending.requester.clone(),
-                package_ref.clone(),
-                pending.requirement,
+                &mut edge_keys,
+                ResolvedEdge {
+                    from: pending.requester.clone(),
+                    from_slot: pending.requester_slot.clone(),
+                    to: package_ref.clone(),
+                    to_slot: occurrence_slot.clone(),
+                    requirement: pending.requirement,
+                },
             );
 
             let trace_id = push_trace_event(
@@ -454,7 +525,7 @@ where
                         .clone(),
                 },
             );
-            let expansion_key = (package_ref.clone(), selection_key.slot.clone());
+            let expansion_key = (package_ref.clone(), occurrence_slot.clone());
             if expanded.insert(expansion_key) {
                 for dependency in candidate.dependencies {
                     let mut inherited_exclusions = pending.inherited_exclusions.clone();
@@ -462,7 +533,8 @@ where
                     queue.push_back(PendingRequirement {
                         requirement: dependency,
                         requester: Some(package_ref.clone()),
-                        slot_parent: package_ref.to_string(),
+                        requester_slot: Some(occurrence_slot.clone()),
+                        slot_parent: occurrence_slot.clone(),
                         depth: pending.depth + 1,
                         inherited_exclusions,
                         parent_trace_id: Some(trace_id.clone()),
@@ -547,6 +619,7 @@ where
         result: &mut ResolveResult,
         package: &PackageRef,
         metadata: &ArtifactMetadata,
+        occurrence_slot: &str,
         constraints: &[ConstraintOrigin],
     ) {
         let depth = constraints
@@ -568,11 +641,13 @@ where
             .and_modify(|node| {
                 node.depth = node.depth.min(depth);
                 node.selected_by.extend(selected_by.iter().cloned());
+                node.selection_slots.insert(occurrence_slot.to_string());
             })
             .or_insert_with(|| ResolvedNode {
                 package: package.clone(),
                 depth,
                 selected_by,
+                selection_slots: BTreeSet::from([occurrence_slot.to_string()]),
                 metadata: metadata.clone(),
             });
     }
@@ -580,19 +655,88 @@ where
     fn push_edge(
         &self,
         result: &mut ResolveResult,
-        from: Option<PackageRef>,
-        to: PackageRef,
-        requirement: DependencyRequirement,
+        edge_keys: &mut BTreeSet<ResolvedEdgeKey>,
+        edge: ResolvedEdge,
     ) {
-        let edge = ResolvedEdge {
-            from,
-            to,
-            requirement,
-        };
-
-        if !result.edges.contains(&edge) {
+        if edge_keys.insert(resolved_edge_key(&edge)) {
             result.edges.push(edge);
         }
+    }
+
+    fn apply_conflict_requirement(
+        &self,
+        result: &mut ResolveResult,
+        trace_sequence: &mut usize,
+        pending: PendingRequirement,
+    ) {
+        let matching = result
+            .nodes
+            .keys()
+            .filter(|selected| {
+                selected.id == pending.requirement.target
+                    && pending.requirement.requirement.matches(&selected.version)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        let reason = if matching.is_empty() {
+            "conflict relation is active but no selected package violates it".to_string()
+        } else {
+            format!(
+                "conflict relation violated by selected package(s): {}",
+                matching
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(",")
+            )
+        };
+
+        if !matching.is_empty() {
+            result.conflicts.push(ConflictDiagnostic {
+                package: pending.requirement.target.clone(),
+                selection_slot: pending
+                    .requester_slot
+                    .clone()
+                    .unwrap_or_else(|| "global".to_string()),
+                constraints: vec![format!(
+                    "{} conflicts with {} {} via {}",
+                    pending
+                        .requester
+                        .as_ref()
+                        .map(ToString::to_string)
+                        .unwrap_or_else(|| "root".to_string()),
+                    pending.requirement.target,
+                    pending.requirement.requirement,
+                    pending.requirement.evidence
+                )],
+                reason: reason.clone(),
+            });
+        }
+
+        push_trace_event(
+            result,
+            trace_sequence,
+            ResolverTraceEvent {
+                id: String::new(),
+                parent_id: pending.parent_trace_id,
+                requester: pending.requester,
+                target: pending.requirement.target.clone(),
+                requirement: pending.requirement.clone(),
+                selection_slot: pending.requester_slot,
+                active_constraints: Vec::new(),
+                candidates_considered: Vec::new(),
+                candidates_rejected: Vec::new(),
+                selected: None,
+                outcome: if matching.is_empty() {
+                    ResolverTraceOutcome::Skipped
+                } else {
+                    ResolverTraceOutcome::Conflict
+                },
+                rule: "solver-constraint=conflicts".to_string(),
+                reason,
+                evidence: pending.requirement.evidence,
+            },
+        );
     }
 
     fn prune_unselected(
@@ -639,6 +783,32 @@ where
                     .as_ref()
                     .is_none_or(|from| reachable.contains(from))
         });
+    }
+}
+
+fn requirement_behavior(requirement: &DependencyRequirement) -> RequirementBehavior {
+    match requirement.relation {
+        DependencyRelation::Provides => RequirementBehavior::RecordsProvide,
+        DependencyRelation::Conflicts => RequirementBehavior::AppliesConflict,
+        _ => RequirementBehavior::SelectsPackage,
+    }
+}
+
+fn occurrence_slot(parent_slot: &str, package: &PackageRef) -> String {
+    format!("{parent_slot}/{package}")
+}
+
+fn resolved_edge_key(edge: &ResolvedEdge) -> ResolvedEdgeKey {
+    ResolvedEdgeKey {
+        from: edge.from.clone(),
+        from_slot: edge.from_slot.clone(),
+        to: edge.to.clone(),
+        to_slot: edge.to_slot.clone(),
+        target: edge.requirement.target.clone(),
+        requirement: edge.requirement.requirement.to_string(),
+        relation: edge.requirement.relation.clone(),
+        scope: edge.requirement.scope.to_string(),
+        evidence: edge.requirement.evidence.clone(),
     }
 }
 
@@ -1270,6 +1440,66 @@ mod tests {
         assert!(result.edges.iter().any(|edge| edge.requirement.relation
             == DependencyRelation::Recommends
             && edge.requirement.scope == DependencyScope::Weak));
+    }
+
+    #[test]
+    fn provides_relation_records_metadata_without_selecting_target() {
+        let root = PackageId::rpm("httpd");
+        let virtual_server = PackageId::rpm("webserver");
+        let mut repo = InMemoryRepository::new();
+        repo.add(
+            PackageVersion::new(root.clone(), "2.4").with_dependencies(vec![
+                DependencyRequirement::new(virtual_server.clone(), VersionRequirement::any())
+                    .relation(DependencyRelation::Provides)
+                    .evidence("rpm provides:webserver"),
+            ]),
+        );
+        repo.add(PackageVersion::new(virtual_server.clone(), "1.0"));
+
+        let result = Resolver::new(repo).resolve(
+            vec![DependencyRequirement::new(root, VersionRequirement::any())],
+            &ResolutionContext::cloudlinux_production_x86_64(),
+        );
+
+        assert!(!result.contains_package(&virtual_server));
+        assert!(result.conflicts.is_empty());
+        assert!(
+            result
+                .trace
+                .iter()
+                .any(|event| event.rule == "descriptive-relation=provides")
+        );
+    }
+
+    #[test]
+    fn conflicts_relation_reports_selected_target_without_resolving_it() {
+        let root = PackageId::rpm("app");
+        let openssl = PackageId::rpm("openssl-libs");
+        let mut repo = InMemoryRepository::new();
+        repo.add(
+            PackageVersion::new(root.clone(), "1.0").with_dependencies(vec![
+                DependencyRequirement::new(openssl.clone(), VersionRequirement::any()),
+                DependencyRequirement::new(openssl.clone(), VersionRequirement::parse("<4.0"))
+                    .relation(DependencyRelation::Conflicts)
+                    .evidence("rpm conflicts:openssl-libs < 4"),
+            ]),
+        );
+        repo.add(PackageVersion::new(openssl.clone(), "3.2.2"));
+
+        let result = Resolver::new(repo).resolve(
+            vec![DependencyRequirement::new(root, VersionRequirement::any())],
+            &ResolutionContext::cloudlinux_production_x86_64(),
+        );
+
+        assert_eq!(result.conflicts.len(), 1);
+        assert_eq!(result.conflicts[0].package, openssl);
+        assert!(
+            result
+                .trace
+                .iter()
+                .any(|event| event.rule == "solver-constraint=conflicts"
+                    && event.outcome == ResolverTraceOutcome::Conflict)
+        );
     }
 
     #[test]

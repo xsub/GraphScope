@@ -211,6 +211,12 @@ impl DependencyHypergraph {
 
     pub fn add_clause(&mut self, clause: RequirementClause) {
         let id = clause.id.clone();
+        if let Some(existing) = self.clauses.remove(&id) {
+            remove_clause_index(&mut self.by_source, &existing.source, &id);
+            for alternative in existing.alternatives {
+                remove_clause_index(&mut self.by_target, &alternative.target, &id);
+            }
+        }
         self.by_source
             .entry(clause.source.clone())
             .or_default()
@@ -270,6 +276,22 @@ impl DependencyHypergraph {
     }
 }
 
+fn remove_clause_index<K: Ord + Clone>(
+    index: &mut BTreeMap<K, BTreeSet<ClauseId>>,
+    key: &K,
+    id: &ClauseId,
+) {
+    let remove_key = if let Some(ids) = index.get_mut(key) {
+        ids.remove(id);
+        ids.is_empty()
+    } else {
+        false
+    };
+    if remove_key {
+        index.remove(key);
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ResolvedOccurrence {
     pub id: OccurrenceId,
@@ -310,7 +332,7 @@ impl ResolvedOccurrence {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ResolvedOccurrenceEdge {
     pub from: Option<OccurrenceId>,
     pub to: OccurrenceId,
@@ -343,8 +365,12 @@ pub struct ResolvedGraphProjection {
     pub occurrences: BTreeMap<OccurrenceId, ResolvedOccurrence>,
     pub edges: Vec<ResolvedOccurrenceEdge>,
     roots: BTreeSet<OccurrenceId>,
+    root_edges: BTreeMap<OccurrenceId, Vec<usize>>,
     forward: BTreeMap<OccurrenceId, BTreeSet<OccurrenceId>>,
     reverse: BTreeMap<OccurrenceId, BTreeSet<OccurrenceId>>,
+    forward_edges: BTreeMap<OccurrenceId, Vec<usize>>,
+    reverse_edges: BTreeMap<OccurrenceId, Vec<usize>>,
+    edge_keys: BTreeSet<ResolvedOccurrenceEdge>,
 }
 
 impl ResolvedGraphProjection {
@@ -354,8 +380,12 @@ impl ResolvedGraphProjection {
             occurrences: BTreeMap::new(),
             edges: Vec::new(),
             roots: BTreeSet::new(),
+            root_edges: BTreeMap::new(),
             forward: BTreeMap::new(),
             reverse: BTreeMap::new(),
+            forward_edges: BTreeMap::new(),
+            reverse_edges: BTreeMap::new(),
+            edge_keys: BTreeSet::new(),
         }
     }
 
@@ -364,24 +394,32 @@ impl ResolvedGraphProjection {
         let mut projection = Self::new(context_key.clone());
 
         for node in result.nodes.values() {
-            let slot = default_occurrence_slot(&node.package);
-            let occurrence =
-                ResolvedOccurrence::new(node.package.clone(), slot, context_key.clone())
-                    .artifact(
-                        node.metadata
-                            .purl
-                            .clone()
-                            .or(node.metadata.checksum.clone()),
-                    )
-                    .selected_by(node.selected_by.clone());
-            projection.add_occurrence(occurrence);
+            let slots = if node.selection_slots.is_empty() {
+                BTreeSet::from([default_occurrence_slot(&node.package)])
+            } else {
+                node.selection_slots.clone()
+            };
+            for slot in slots {
+                let occurrence =
+                    ResolvedOccurrence::new(node.package.clone(), slot, context_key.clone())
+                        .artifact(
+                            node.metadata
+                                .purl
+                                .clone()
+                                .or(node.metadata.checksum.clone()),
+                        )
+                        .selected_by(node.selected_by.clone());
+                projection.add_occurrence(occurrence);
+            }
         }
 
         for (index, edge) in result.edges.iter().enumerate() {
-            let to_slot = default_occurrence_slot(&edge.to);
-            let to = occurrence_id(&context_key, &to_slot, &edge.to);
+            let to = occurrence_id(&context_key, &edge.to_slot, &edge.to);
             let from = edge.from.as_ref().map(|package| {
-                let slot = default_occurrence_slot(package);
+                let slot = edge
+                    .from_slot
+                    .clone()
+                    .unwrap_or_else(|| default_occurrence_slot(package));
                 occurrence_id(&context_key, &slot, package)
             });
             projection.add_edge(ResolvedOccurrenceEdge {
@@ -402,6 +440,11 @@ impl ResolvedGraphProjection {
     }
 
     pub fn add_edge(&mut self, edge: ResolvedOccurrenceEdge) {
+        if !self.edge_keys.insert(edge.clone()) {
+            return;
+        }
+
+        let edge_index = self.edges.len();
         if let Some(from) = &edge.from {
             self.forward
                 .entry(from.clone())
@@ -411,13 +454,23 @@ impl ResolvedGraphProjection {
                 .entry(edge.to.clone())
                 .or_default()
                 .insert(from.clone());
+            self.forward_edges
+                .entry(from.clone())
+                .or_default()
+                .push(edge_index);
+            self.reverse_edges
+                .entry(edge.to.clone())
+                .or_default()
+                .push(edge_index);
         } else {
             self.roots.insert(edge.to.clone());
+            self.root_edges
+                .entry(edge.to.clone())
+                .or_default()
+                .push(edge_index);
         }
 
-        if !self.edges.contains(&edge) {
-            self.edges.push(edge);
-        }
+        self.edges.push(edge);
     }
 
     pub fn roots(&self) -> Vec<OccurrenceId> {
@@ -429,16 +482,18 @@ impl ResolvedGraphProjection {
     }
 
     pub fn outgoing_edges(&self, occurrence: &OccurrenceId) -> Vec<&ResolvedOccurrenceEdge> {
-        self.edges
-            .iter()
-            .filter(|edge| edge.from.as_ref() == Some(occurrence))
+        self.forward_edges
+            .get(occurrence)
+            .into_iter()
+            .flat_map(|indexes| indexes.iter().map(|index| &self.edges[*index]))
             .collect()
     }
 
     pub fn incoming_edges(&self, occurrence: &OccurrenceId) -> Vec<&ResolvedOccurrenceEdge> {
-        self.edges
-            .iter()
-            .filter(|edge| edge.to == *occurrence)
+        self.reverse_edges
+            .get(occurrence)
+            .into_iter()
+            .flat_map(|indexes| indexes.iter().map(|index| &self.edges[*index]))
             .collect()
     }
 
@@ -501,6 +556,25 @@ impl ResolvedGraphProjection {
         target: &OccurrenceId,
         max_depth: usize,
     ) -> Vec<OccurrencePath> {
+        self.paths_to_occurrence_capped(target, max_depth, DEFAULT_MAX_PATHS)
+    }
+
+    pub fn shortest_path_to_occurrence(
+        &self,
+        target: &OccurrenceId,
+        max_depth: usize,
+    ) -> Option<OccurrencePath> {
+        self.paths_to_occurrence_capped(target, max_depth, 1)
+            .into_iter()
+            .next()
+    }
+
+    pub fn paths_to_occurrence_capped(
+        &self,
+        target: &OccurrenceId,
+        max_depth: usize,
+        max_paths: usize,
+    ) -> Vec<OccurrencePath> {
         if !self.occurrences.contains_key(target) {
             return Vec::new();
         }
@@ -510,12 +584,7 @@ impl ResolvedGraphProjection {
             .roots()
             .into_iter()
             .map(|root| {
-                let evidence = self
-                    .edges
-                    .iter()
-                    .filter(|edge| edge.from.is_none() && edge.to == root)
-                    .map(|edge| edge.evidence.clone())
-                    .collect::<Vec<_>>();
+                let evidence = self.root_evidence(&root);
                 (root.clone(), vec![root], evidence)
             })
             .collect::<VecDeque<_>>();
@@ -524,11 +593,14 @@ impl ResolvedGraphProjection {
             if &current == target {
                 if let Some(path) = self.occurrence_path(path, evidence) {
                     paths.push(path);
+                    if paths.len() >= max_paths {
+                        break;
+                    }
                 }
                 continue;
             }
 
-            if path.len() > max_depth {
+            if path.len().saturating_sub(1) >= max_depth {
                 continue;
             }
 
@@ -549,10 +621,22 @@ impl ResolvedGraphProjection {
     }
 
     pub fn paths_to_package(&self, package: &PackageId, max_depth: usize) -> Vec<OccurrencePath> {
+        self.paths_to_package_capped(package, max_depth, DEFAULT_MAX_PATHS)
+    }
+
+    pub fn paths_to_package_capped(
+        &self,
+        package: &PackageId,
+        max_depth: usize,
+        max_paths: usize,
+    ) -> Vec<OccurrencePath> {
         let mut paths = self
             .package_occurrences(package)
             .into_iter()
-            .flat_map(|occurrence| self.paths_to_occurrence(&occurrence, max_depth))
+            .flat_map(|occurrence| {
+                self.paths_to_occurrence_capped(&occurrence, max_depth, max_paths)
+            })
+            .take(max_paths)
             .collect::<Vec<_>>();
         paths.sort_by_key(OccurrencePath::display);
         paths
@@ -577,6 +661,18 @@ impl ResolvedGraphProjection {
             evidence,
         })
     }
+
+    fn root_evidence(&self, root: &OccurrenceId) -> Vec<String> {
+        self.root_edges
+            .get(root)
+            .into_iter()
+            .flat_map(|indexes| {
+                indexes
+                    .iter()
+                    .map(|index| self.edges[*index].evidence.clone())
+            })
+            .collect()
+    }
 }
 
 pub fn occurrence_id(context_key: &str, slot: &str, package: &PackageRef) -> OccurrenceId {
@@ -586,6 +682,8 @@ pub fn occurrence_id(context_key: &str, slot: &str, package: &PackageRef) -> Occ
 fn default_occurrence_slot(package: &PackageRef) -> String {
     package.id.to_string()
 }
+
+const DEFAULT_MAX_PATHS: usize = 256;
 
 #[cfg(test)]
 mod tests {
@@ -624,6 +722,31 @@ mod tests {
         assert_eq!(targets, vec![nano.clone(), vim.clone()]);
         assert_eq!(graph.clauses_for_target(&vim).len(), 1);
         assert_eq!(graph.clauses_for_target(&nano).len(), 1);
+    }
+
+    #[test]
+    fn replacing_clause_removes_stale_source_and_target_indexes() {
+        let first_source = ClauseSource::Project("first".to_string());
+        let second_source = ClauseSource::Project("second".to_string());
+        let first_target = PackageId::rpm("openssl-libs");
+        let second_target = PackageId::rpm("zlib");
+        let mut graph = DependencyHypergraph::new();
+
+        graph.add_clause(RequirementClause::from_requirement(
+            "same-id",
+            first_source.clone(),
+            DependencyRequirement::new(first_target.clone(), VersionRequirement::any()),
+        ));
+        graph.add_clause(RequirementClause::from_requirement(
+            "same-id",
+            second_source.clone(),
+            DependencyRequirement::new(second_target.clone(), VersionRequirement::any()),
+        ));
+
+        assert!(graph.clauses_from(&first_source).is_empty());
+        assert!(graph.clauses_for_target(&first_target).is_empty());
+        assert_eq!(graph.clauses_from(&second_source).len(), 1);
+        assert_eq!(graph.clauses_for_target(&second_target).len(), 1);
     }
 
     #[test]
@@ -744,5 +867,38 @@ mod tests {
                 "rpm metadata:openssl".to_string()
             ]
         );
+    }
+
+    #[test]
+    fn projection_keeps_same_npm_version_occurrences_in_parent_slots() {
+        let app = PackageId::internal("app");
+        let left = PackageId::npm(None::<String>, "left");
+        let right = PackageId::npm(None::<String>, "right");
+        let shared = PackageId::npm(None::<String>, "shared");
+        let mut repository = InMemoryRepository::new();
+        repository.add(
+            PackageVersion::new(app.clone(), "1.0").with_dependencies(vec![
+                DependencyRequirement::new(left.clone(), VersionRequirement::any()),
+                DependencyRequirement::new(right.clone(), VersionRequirement::any()),
+            ]),
+        );
+        repository.add(PackageVersion::new(left, "1.0").with_dependencies(vec![
+            DependencyRequirement::new(shared.clone(), VersionRequirement::exact("1.0.0")),
+        ]));
+        repository.add(PackageVersion::new(right, "1.0").with_dependencies(vec![
+            DependencyRequirement::new(shared.clone(), VersionRequirement::exact("1.0.0")),
+        ]));
+        repository.add(PackageVersion::new(shared.clone(), "1.0.0"));
+
+        let context = ResolutionContext::cloudlinux_production_x86_64();
+        let result = Resolver::new(repository).resolve(
+            vec![DependencyRequirement::new(app, VersionRequirement::any())],
+            &context,
+        );
+        let projection =
+            ResolvedGraphProjection::from_resolve_result(context.stable_key(), &result);
+
+        assert_eq!(projection.package_occurrences(&shared).len(), 2);
+        assert_eq!(projection.paths_to_package(&shared, 8).len(), 2);
     }
 }

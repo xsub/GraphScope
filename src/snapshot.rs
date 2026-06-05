@@ -1,5 +1,6 @@
 use crate::evidence::stable_hash;
 use crate::hypergraph::ResolvedGraphProjection;
+use crate::json::{JsonValue as Json, json_string, object_members};
 use crate::model::{ResolutionContext, Version};
 use crate::resolver::ResolveResult;
 
@@ -45,8 +46,8 @@ impl GraphSnapshot {
 
     pub fn to_json_pretty(&self) -> String {
         format!(
-            "{{\n  \"snapshot_id\": \"{}\",\n{}\n}}",
-            escape_json(&self.id),
+            "{{\n  \"snapshot_id\": {},\n{}\n}}",
+            json_string(&self.id),
             indent_body(&self.json_body)
         )
     }
@@ -121,149 +122,183 @@ fn snapshot_body_json(
         ))
     });
 
-    let node_json = nodes
-        .iter()
-        .map(|node| {
-            format!(
-                "{{\"package\":\"{}\",\"depth\":{},\"selected_by\":[{}]}}",
-                escape_json(&node.package.to_string()),
-                node.depth,
-                json_string_array(node.selected_by.iter().map(String::as_str))
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(",");
-
-    let occurrence_json = occurrences
-        .iter()
-        .map(|occurrence| {
-            format!(
-                "{{\"id\":\"{}\",\"package\":\"{}\",\"slot\":\"{}\",\"context_key\":\"{}\",\"artifact\":{},\"selected_by\":[{}]}}",
-                escape_json(&occurrence.id),
-                escape_json(&occurrence.package.to_string()),
-                escape_json(&occurrence.slot),
-                escape_json(&occurrence.context_key),
-                optional_json_string(occurrence.artifact.as_deref()),
-                json_string_array(occurrence.selected_by.iter().map(String::as_str))
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(",");
-
-    let occurrence_edge_json = occurrence_edges
-        .iter()
-        .map(|edge| {
-            format!(
-                "{{\"from\":{},\"to\":\"{}\",\"clause_id\":\"{}\",\"relation\":\"{}\",\"scope\":\"{}\",\"evidence\":\"{}\"}}",
-                optional_json_string(edge.from.as_deref()),
-                escape_json(&edge.to),
-                escape_json(&edge.clause_id),
-                edge.relation,
-                edge.scope,
-                escape_json(&edge.evidence)
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(",");
-
-    let edge_json = edges
-        .iter()
-        .map(|edge| {
-            format!(
-                "{{\"from\":{},\"to\":\"{}\",\"relation\":\"{}\",\"scope\":\"{}\",\"requirement\":\"{}\",\"evidence\":\"{}\"}}",
-                edge.from
-                    .as_ref()
-                    .map(|from| format!("\"{}\"", escape_json(&from.to_string())))
-                    .unwrap_or_else(|| "null".to_string()),
-                escape_json(&edge.to.to_string()),
-                edge.requirement.relation,
-                edge.requirement.scope,
-                escape_json(&edge.requirement.requirement.to_string()),
-                escape_json(&edge.requirement.evidence)
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(",");
-
-    let skipped_json = skipped
-        .iter()
-        .map(|skipped| {
-            format!(
-                "{{\"requester\":{},\"target\":\"{}\",\"reason\":\"{}\",\"evidence\":\"{}\"}}",
-                skipped
-                    .requester
-                    .as_ref()
-                    .map(|requester| format!("\"{}\"", escape_json(&requester.to_string())))
-                    .unwrap_or_else(|| "null".to_string()),
-                escape_json(&skipped.target.to_string()),
-                escape_json(&skipped.reason),
-                escape_json(&skipped.requirement.evidence)
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(",");
-
-    let conflict_json = conflicts
-        .iter()
-        .map(|conflict| {
-            format!(
-                "{{\"package\":\"{}\",\"selection_slot\":\"{}\",\"reason\":\"{}\",\"constraints\":[{}]}}",
-                escape_json(&conflict.package.to_string()),
-                escape_json(&conflict.selection_slot),
-                escape_json(&conflict.reason),
-                json_string_array(conflict.constraints.iter().map(String::as_str))
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(",");
-
-    let trace_json = result
-        .trace
-        .iter()
-        .map(|event| {
-            format!(
-                "{{\"id\":\"{}\",\"parent_id\":{},\"requester\":{},\"target\":\"{}\",\"selection_slot\":{},\"requirement\":\"{}\",\"outcome\":\"{}\",\"rule\":\"{}\",\"reason\":\"{}\",\"evidence\":\"{}\",\"active_constraints\":[{}],\"candidates_considered\":[{}],\"candidates_rejected\":[{}],\"selected\":{}}}",
-                escape_json(&event.id),
-                optional_json_string(event.parent_id.as_deref()),
-                event
-                    .requester
-                    .as_ref()
-                    .map(|requester| format!("\"{}\"", escape_json(&requester.to_string())))
-                    .unwrap_or_else(|| "null".to_string()),
-                escape_json(&event.target.to_string()),
-                optional_json_string(event.selection_slot.as_deref()),
-                escape_json(&event.requirement.requirement.to_string()),
-                event.outcome,
-                escape_json(&event.rule),
-                escape_json(&event.reason),
-                escape_json(&event.evidence),
-                json_string_array(event.active_constraints.iter().map(String::as_str)),
-                json_string_array(event.candidates_considered.iter().map(ToString::to_string)),
-                json_string_array(event.candidates_rejected.iter().map(ToString::to_string)),
-                event
-                    .selected
-                    .as_ref()
-                    .map(|selected| format!("\"{}\"", escape_json(&selected.to_string())))
-                    .unwrap_or_else(|| "null".to_string())
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(",");
-
-    format!(
-        "\"name\":\"{}\",\"resolver_version\":\"{}\",\"context_hash\":\"{}\",\"context\":{},\"nodes\":[{}],\"edges\":[{}],\"occurrences\":[{}],\"occurrence_edges\":[{}],\"skipped\":[{}],\"conflicts\":[{}],\"trace\":[{}]",
-        escape_json(name),
-        escape_json(resolver_version),
-        escape_json(context_hash),
-        context_json,
-        node_json,
-        edge_json,
-        occurrence_json,
-        occurrence_edge_json,
-        skipped_json,
-        conflict_json,
-        trace_json
-    )
+    object_members([
+        ("name", Json::string(name)),
+        ("resolver_version", Json::string(resolver_version)),
+        ("context_hash", Json::string(context_hash)),
+        ("context", Json::raw(context_json)),
+        (
+            "nodes",
+            Json::array(nodes.iter().map(|node| {
+                Json::object([
+                    ("package", Json::string(node.package.to_string())),
+                    ("depth", Json::number(node.depth)),
+                    (
+                        "selected_by",
+                        Json::string_array(node.selected_by.iter().map(String::as_str)),
+                    ),
+                    (
+                        "selection_slots",
+                        Json::string_array(node.selection_slots.iter().map(String::as_str)),
+                    ),
+                ])
+            })),
+        ),
+        (
+            "edges",
+            Json::array(edges.iter().map(|edge| {
+                Json::object([
+                    (
+                        "from",
+                        Json::optional_string(
+                            edge.from.as_ref().map(ToString::to_string).as_deref(),
+                        ),
+                    ),
+                    (
+                        "from_slot",
+                        Json::optional_string(edge.from_slot.as_deref()),
+                    ),
+                    ("to", Json::string(edge.to.to_string())),
+                    ("to_slot", Json::string(edge.to_slot.clone())),
+                    (
+                        "relation",
+                        Json::string(edge.requirement.relation.to_string()),
+                    ),
+                    ("scope", Json::string(edge.requirement.scope.to_string())),
+                    (
+                        "requirement",
+                        Json::string(edge.requirement.requirement.to_string()),
+                    ),
+                    ("evidence", Json::string(edge.requirement.evidence.clone())),
+                ])
+            })),
+        ),
+        (
+            "occurrences",
+            Json::array(occurrences.iter().map(|occurrence| {
+                Json::object([
+                    ("id", Json::string(occurrence.id.clone())),
+                    ("package", Json::string(occurrence.package.to_string())),
+                    ("slot", Json::string(occurrence.slot.clone())),
+                    ("context_key", Json::string(occurrence.context_key.clone())),
+                    (
+                        "artifact",
+                        Json::optional_string(occurrence.artifact.as_deref()),
+                    ),
+                    (
+                        "selected_by",
+                        Json::string_array(occurrence.selected_by.iter().map(String::as_str)),
+                    ),
+                ])
+            })),
+        ),
+        (
+            "occurrence_edges",
+            Json::array(occurrence_edges.iter().map(|edge| {
+                Json::object([
+                    ("from", Json::optional_string(edge.from.as_deref())),
+                    ("to", Json::string(edge.to.clone())),
+                    ("clause_id", Json::string(edge.clause_id.clone())),
+                    ("relation", Json::string(edge.relation.to_string())),
+                    ("scope", Json::string(edge.scope.to_string())),
+                    ("evidence", Json::string(edge.evidence.clone())),
+                ])
+            })),
+        ),
+        (
+            "skipped",
+            Json::array(skipped.iter().map(|skipped| {
+                Json::object([
+                    (
+                        "requester",
+                        Json::optional_string(
+                            skipped
+                                .requester
+                                .as_ref()
+                                .map(ToString::to_string)
+                                .as_deref(),
+                        ),
+                    ),
+                    ("target", Json::string(skipped.target.to_string())),
+                    ("reason", Json::string(skipped.reason.clone())),
+                    (
+                        "evidence",
+                        Json::string(skipped.requirement.evidence.clone()),
+                    ),
+                ])
+            })),
+        ),
+        (
+            "conflicts",
+            Json::array(conflicts.iter().map(|conflict| {
+                Json::object([
+                    ("package", Json::string(conflict.package.to_string())),
+                    (
+                        "selection_slot",
+                        Json::string(conflict.selection_slot.clone()),
+                    ),
+                    ("reason", Json::string(conflict.reason.clone())),
+                    (
+                        "constraints",
+                        Json::string_array(conflict.constraints.iter().map(String::as_str)),
+                    ),
+                ])
+            })),
+        ),
+        (
+            "trace",
+            Json::array(result.trace.iter().map(|event| {
+                Json::object([
+                    ("id", Json::string(event.id.clone())),
+                    (
+                        "parent_id",
+                        Json::optional_string(event.parent_id.as_deref()),
+                    ),
+                    (
+                        "requester",
+                        Json::optional_string(
+                            event.requester.as_ref().map(ToString::to_string).as_deref(),
+                        ),
+                    ),
+                    ("target", Json::string(event.target.to_string())),
+                    (
+                        "selection_slot",
+                        Json::optional_string(event.selection_slot.as_deref()),
+                    ),
+                    (
+                        "requirement",
+                        Json::string(event.requirement.requirement.to_string()),
+                    ),
+                    ("outcome", Json::string(event.outcome.to_string())),
+                    ("rule", Json::string(event.rule.clone())),
+                    ("reason", Json::string(event.reason.clone())),
+                    ("evidence", Json::string(event.evidence.clone())),
+                    (
+                        "active_constraints",
+                        Json::string_array(event.active_constraints.iter().map(String::as_str)),
+                    ),
+                    (
+                        "candidates_considered",
+                        Json::string_array(
+                            event.candidates_considered.iter().map(ToString::to_string),
+                        ),
+                    ),
+                    (
+                        "candidates_rejected",
+                        Json::string_array(
+                            event.candidates_rejected.iter().map(ToString::to_string),
+                        ),
+                    ),
+                    (
+                        "selected",
+                        Json::optional_string(
+                            event.selected.as_ref().map(ToString::to_string).as_deref(),
+                        ),
+                    ),
+                ])
+            })),
+        ),
+    ])
 }
 
 fn context_json(context: &ResolutionContext) -> String {
@@ -273,64 +308,49 @@ fn context_json(context: &ResolutionContext) -> String {
         .map(|(ecosystem, version)| (ecosystem.to_string(), version.clone()))
         .collect::<Vec<(String, Version)>>();
 
-    format!(
-        "{{\"os\":\"{:?}\",\"distro\":\"{:?}\",\"arch\":\"{:?}\",\"distro_major_version\":{},\"profiles\":[{}],\"enabled_features\":[{}],\"include_scopes\":[{}],\"include_optional\":{},\"language_versions\":[{}],\"repository_channels\":[{}]}}",
-        context.os,
-        context.distro,
-        context.arch,
-        context
-            .distro_major_version
-            .map(|value| value.to_string())
-            .unwrap_or_else(|| "null".to_string()),
-        json_string_array(context.profiles.iter().map(|value| format!("{value:?}"))),
-        json_string_array(context.enabled_features.iter().map(String::as_str)),
-        json_string_array(context.include_scopes.iter().map(ToString::to_string)),
-        context.include_optional,
-        language_versions
-            .iter()
-            .map(|(ecosystem, version)| format!(
-                "{{\"ecosystem\":\"{}\",\"version\":\"{}\"}}",
-                escape_json(ecosystem),
-                escape_json(&version.to_string())
-            ))
-            .collect::<Vec<_>>()
-            .join(","),
-        json_string_array(context.repository_channels.iter().map(String::as_str))
-    )
-}
-
-fn json_string_array<'a>(values: impl IntoIterator<Item = impl AsRef<str> + 'a>) -> String {
-    values
-        .into_iter()
-        .map(|value| format!("\"{}\"", escape_json(value.as_ref())))
-        .collect::<Vec<_>>()
-        .join(",")
-}
-
-fn optional_json_string(value: Option<&str>) -> String {
-    value
-        .map(|value| format!("\"{}\"", escape_json(value)))
-        .unwrap_or_else(|| "null".to_string())
+    Json::object([
+        ("os", Json::string(format!("{:?}", context.os))),
+        ("distro", Json::string(format!("{:?}", context.distro))),
+        ("arch", Json::string(format!("{:?}", context.arch))),
+        (
+            "distro_major_version",
+            context
+                .distro_major_version
+                .map(Json::number)
+                .unwrap_or_else(Json::null),
+        ),
+        (
+            "profiles",
+            Json::string_array(context.profiles.iter().map(|value| format!("{value:?}"))),
+        ),
+        (
+            "enabled_features",
+            Json::string_array(context.enabled_features.iter().map(String::as_str)),
+        ),
+        (
+            "include_scopes",
+            Json::string_array(context.include_scopes.iter().map(ToString::to_string)),
+        ),
+        ("include_optional", Json::bool(context.include_optional)),
+        (
+            "language_versions",
+            Json::array(language_versions.iter().map(|(ecosystem, version)| {
+                Json::object([
+                    ("ecosystem", Json::string(ecosystem.clone())),
+                    ("version", Json::string(version.to_string())),
+                ])
+            })),
+        ),
+        (
+            "repository_channels",
+            Json::string_array(context.repository_channels.iter().map(String::as_str)),
+        ),
+    ])
+    .to_json()
 }
 
 fn indent_body(body: &str) -> String {
     format!("  {body}")
-}
-
-fn escape_json(value: &str) -> String {
-    let mut escaped = String::with_capacity(value.len());
-    for ch in value.chars() {
-        match ch {
-            '"' => escaped.push_str("\\\""),
-            '\\' => escaped.push_str("\\\\"),
-            '\n' => escaped.push_str("\\n"),
-            '\r' => escaped.push_str("\\r"),
-            '\t' => escaped.push_str("\\t"),
-            ch if ch.is_control() => escaped.push_str(&format!("\\u{:04x}", ch as u32)),
-            ch => escaped.push(ch),
-        }
-    }
-    escaped
 }
 
 #[cfg(test)]
