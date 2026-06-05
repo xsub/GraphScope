@@ -1,3 +1,5 @@
+//! Normalized evidence records that preserve declared, locked, and observed facts.
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::hypergraph::{ClauseSource, DependencyHypergraph, RequirementClause};

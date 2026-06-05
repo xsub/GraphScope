@@ -1,3 +1,5 @@
+//! Conservative parsers for lockfiles, manifests, SBOMs, and RPM inventories.
+
 use std::{collections::BTreeMap, fmt};
 
 use crate::evidence::{

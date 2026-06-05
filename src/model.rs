@@ -1,3 +1,5 @@
+//! Core package, version, dependency, context, and provenance model types.
+
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;

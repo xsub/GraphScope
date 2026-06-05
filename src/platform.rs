@@ -1,3 +1,5 @@
+//! Tenant-scoped resolver jobs, graph records, stores, and invalidation planning.
+
 use std::collections::{BTreeMap, VecDeque};
 
 use crate::advisory::{Advisory, ImpactReport};

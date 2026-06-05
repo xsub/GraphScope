@@ -1,3 +1,5 @@
+//! Package candidate repository abstraction and in-memory MVP implementation.
+
 use std::collections::BTreeMap;
 
 use crate::model::{PackageId, PackageVersion};

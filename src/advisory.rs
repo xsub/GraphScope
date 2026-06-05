@@ -1,3 +1,5 @@
+//! Advisory matching and impact reports over resolved dependency graphs.
+
 use std::fmt;
 
 use crate::model::{PackageId, PackageRef, VersionRequirement};

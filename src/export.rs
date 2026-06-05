@@ -1,3 +1,5 @@
+//! Export views for SBOM, VEX, remediation, SLA, and dashboard workflows.
+
 use crate::advisory::{ImpactReport, VexStatus};
 use crate::json::JsonValue as Json;
 use crate::policy::{PolicyEvaluation, PolicySeverity};

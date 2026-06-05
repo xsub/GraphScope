@@ -1,3 +1,5 @@
+//! Evidence format detection and parser dispatch for supported project inputs.
+
 use std::fmt;
 use std::path::Path;
 

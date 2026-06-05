@@ -1,3 +1,5 @@
+//! Public GraphScope API for dependency evidence, resolution, queries, and exports.
+
 pub mod adapter;
 pub mod advisory;
 pub mod benchmark;

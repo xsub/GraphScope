@@ -1,3 +1,5 @@
+//! Typed dependency hypergraph clauses and resolved occurrence projections.
+
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 

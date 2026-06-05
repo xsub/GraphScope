@@ -1,3 +1,5 @@
+//! Durable file and SQLite stores for immutable snapshots and replayable events.
+
 use std::fs;
 use std::io;
 use std::io::Write;

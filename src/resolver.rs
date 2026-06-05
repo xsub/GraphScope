@@ -1,3 +1,5 @@
+//! Context-aware dependency resolver with deterministic traces and diagnostics.
+
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 

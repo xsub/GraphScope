@@ -1,3 +1,5 @@
+//! Customer policy evaluation for package sources, signatures, coverage, and rules.
+
 use std::collections::BTreeSet;
 use std::fmt;
 

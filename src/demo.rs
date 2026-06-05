@@ -1,3 +1,5 @@
+//! Synthetic CloudLinux/TuxCare demo graph, advisories, and policy fixtures.
+
 use std::collections::BTreeSet;
 
 use crate::advisory::{Advisory, AdvisorySeverity};

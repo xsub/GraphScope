@@ -1,3 +1,5 @@
+//! Forward, reverse, path, explanation, and diff queries over resolved graphs.
+
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::hypergraph::{OccurrencePath, ResolvedGraphProjection};

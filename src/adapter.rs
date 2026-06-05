@@ -1,3 +1,5 @@
+//! Adapter capability and resolver-contract metadata for supported ecosystems.
+
 use std::fmt;
 
 use crate::ingest::EvidenceFormat;

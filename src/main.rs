@@ -1,3 +1,5 @@
+//! Command-line workflows that exercise the GraphScope MVP APIs.
+
 use graphscope::{
     AlgorithmBenchmarkConfig, ChangeEvent, CycloneDxView, EvidenceRepositoryBuilder,
     EvidenceSubject, FileChangeEventLog, FileGraphStore, GraphDiff, GraphQuery, GraphSnapshot,

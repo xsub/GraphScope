@@ -1,3 +1,5 @@
+"""Contract checks for fixture parsing, CI claims, and CLI output stability."""
+
 from pathlib import Path
 import tomllib
 
@@ -7,6 +9,16 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def read_text(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
+
+
+def test_rust_translation_units_have_module_comments() -> None:
+    missing = [
+        path.relative_to(ROOT).as_posix()
+        for path in sorted((ROOT / "src").glob("*.rs"))
+        if not path.read_text(encoding="utf-8").startswith("//! ")
+    ]
+
+    assert missing == []
 
 
 def test_cargo_features_expose_adapter_surfaces() -> None:

@@ -1,3 +1,5 @@
+//! Stable resolved graph snapshot serialization and snapshot identity.
+
 use crate::evidence::stable_hash;
 use crate::hypergraph::ResolvedGraphProjection;
 use crate::json::{JsonValue as Json, json_string, object_members};

@@ -1,3 +1,5 @@
+//! Deterministic graph construction and traversal benchmark for resolver changes.
+
 use std::time::Instant;
 
 use crate::{

@@ -1,3 +1,5 @@
+//! Minimal JSON writer used by deterministic snapshots and report exports.
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum JsonValue {
     Null,

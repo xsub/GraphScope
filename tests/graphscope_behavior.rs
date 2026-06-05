@@ -1,3 +1,5 @@
+//! Integration tests for GraphScope CLI behavior and public API contracts.
+
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
