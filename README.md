@@ -31,7 +31,7 @@
 ![File Store](https://img.shields.io/badge/file%20store-durable%20MVP-0a7)
 ![Event Log](https://img.shields.io/badge/event%20log-durable%20MVP-7952b3)
 ![pytest CI](https://img.shields.io/badge/pytest-CI-0a9edc?logo=pytest)
-![Tests](https://img.shields.io/badge/tests-215%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-216%20passing-brightgreen)
 ![License](https://img.shields.io/badge/license-unlicensed-lightgrey)
 ![Runtime Deps](https://img.shields.io/badge/runtime%20deps-rusqlite%20optional-blue)
 
@@ -224,7 +224,9 @@ the TuxCare product dependency graph remains a synthetic demo scenario.
 - [Capability Matrix](docs/capability-matrix.md)
 - [Language And Package Manager Analysis](docs/language-analysis.md)
 - [Architecture](docs/architecture.md)
+- [Architecture UML](docs/architecture-uml.md)
 - [Hypergraph Model](docs/hypergraph-model.md)
+- [Graph Algorithms](docs/graph-algorithms.md)
 - [Resolution Algorithm](docs/resolution-algorithm.md)
 - [Design Decisions](DECISIONS.md)
 - [Roadmap](docs/roadmap.md)

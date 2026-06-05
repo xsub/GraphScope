@@ -221,6 +221,38 @@ def test_hypergraph_model_documents_source_of_truth_and_projection() -> None:
     assert "resolved occurrence graph projection" in roadmap
 
 
+def test_github_mermaid_docs_are_linked_and_research_backed() -> None:
+    readme = read_text("README.md")
+    architecture = read_text("docs/architecture-uml.md")
+    algorithms = read_text("docs/graph-algorithms.md")
+
+    assert "docs/architecture-uml.md" in readme
+    assert "docs/graph-algorithms.md" in readme
+
+    for token in [
+        "```mermaid",
+        "classDiagram",
+        "sequenceDiagram",
+        "DependencyHypergraph",
+        "ResolvedGraphProjection",
+    ]:
+        assert token in architecture
+
+    for token in [
+        "```mermaid",
+        "stateDiagram-v2",
+        "Traversal And Index View",
+        "Research Mapping",
+        "HyperRes",
+        "Package Calculus",
+        "ACM Queue",
+        "deps.dev",
+        "PEP 508",
+        "FASTEN",
+    ]:
+        assert token in algorithms
+
+
 def test_project_goals_are_tracked_and_aligned_to_model_choice() -> None:
     readme = read_text("README.md")
     goals = read_text("PROJECT_GOALS.md")
