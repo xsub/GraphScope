@@ -226,6 +226,7 @@ the TuxCare product dependency graph remains a synthetic demo scenario.
 - [Architecture](docs/architecture.md)
 - [Hypergraph Model](docs/hypergraph-model.md)
 - [Resolution Algorithm](docs/resolution-algorithm.md)
+- [Design Decisions](DECISIONS.md)
 - [Roadmap](docs/roadmap.md)
 - [Test Inventory](docs/test-inventory.md)
 
